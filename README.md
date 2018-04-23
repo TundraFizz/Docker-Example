@@ -8,7 +8,7 @@
 | `docker run -p 80:9001 image-name`        | Run image in terminal (useful for testing)  |
 | `docker tag image-name repo:tag`          | Set an image's repository and tag           |
 | `docker rmi IMAGE_ID`                     | Delete a particular image                   |
-| `docker images -q \| xargs docker rmi -f`  | Delete all images                           |
+| `docker rmi -f $(docker images -q)`       | Delete all images                           |
 | `docker push tundrafizz/image-name`       | Push an image to Docker's online repository |
 
 #### Containers
