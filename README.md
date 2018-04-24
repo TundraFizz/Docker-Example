@@ -32,6 +32,7 @@
 | ------------------------------------------- | ----------------------------------------- |
 | `docker stack deploy -c docker.yml sample`  | Create services from a stack/compose file |
 | `docker node ls`                            | List all workers/managers in the swarm    |
+| `docker node ps $(docker node ls -q)`       | List all tasks across all nodes           |
 | `docker service ls`                         | List all services in the swarm            |
 | `docker service ls -q`                      | List all services in the swarm (only IDs) |
 | `docker service ps NAME`                    | Check detailed status of a service        |
