@@ -46,14 +46,3 @@ Create a service manually
 | Command                                     | Description                               |
 | ------------------------------------------- | ----------------------------------------- |
 | `docker-machine ls`                         | I'm not sure what this is for yet         |
-
-#### Docker file template
-```
-FROM node:carbon
-WORKDIR /usr/src/app
-COPY package.json .
-RUN npm install
-COPY . .
-EXPOSE 9001
-CMD ["npm", "start"]
-```
