@@ -17,7 +17,7 @@ generate_ssl(){
   echo $bar
 
   domain_name=$1
-  volume_name=tundra_ssl_test
+  volume_name=tundra_ssl_challenge
 
   # Check if NGINX configuration file exists
   nginx_config_path=./nginx_conf.d/$domain_name.conf
@@ -27,11 +27,12 @@ generate_ssl(){
   fi
 
   docker run -it --rm --name certbot          \
-    -v /home/centos/swag/ssl:/etc/letsencrypt \
-    -v $volume_name:/challenge                \
+    -v tundra_ssl:/etc/letsencrypt            \
+    -v tundra_ssl_challenge:/ssl_challenge    \
     certbot/certbot certonly --register-unsafely-without-email --webroot --agree-tos \
-    -w /challenge -d "$domain_name" "$staging"
+    -w /ssl_challenge -d "$domain_name" "$staging"
 
+  # Only remove the lines if the above was successful
   lines=$(cat "./nginx_conf.d/$domain_name.conf" | grep -n ssl_certificate | cut -f1 -d:)
   count=0
 
@@ -54,7 +55,7 @@ generate_ssl(){
 
 check_options(){
   if [ $# = 0 ]; then
-    echo "Usage: generate_sll.sh [OPTION]... [DOMAIN]..."
+    echo "Usage: cert_final.sh [OPTION]... [DOMAIN]..."
     echo "Options:"
     echo "-s         Staging mode, generate SSL certs for testing"
     echo "-e=EMAIL   Optional email to use when generating certs"
