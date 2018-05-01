@@ -46,3 +46,5 @@ Create a service manually
 | Command                                     | Description                               |
 | ------------------------------------------- | ----------------------------------------- |
 | `docker-machine ls`                         | I'm not sure what this is for yet         |
+
+WARNING! Any keys in the `sample` directory are examples and shouldn't be used in production
