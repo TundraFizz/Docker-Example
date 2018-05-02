@@ -93,7 +93,8 @@ scan_options(){
   done
 
   # Create an ssl directory if it doesn't exist
-  mkdir ssl -p
+  # mkdir ssl -p
+  # I DON'T THINK I NEED TO CREATE AN SSL DIRECTORY ANYMORE
 
   for i in "${domains[@]}"
   do
