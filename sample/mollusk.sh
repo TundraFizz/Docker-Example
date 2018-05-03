@@ -9,9 +9,116 @@
 
 # Default values for command-line options
 staging=""
-email=false
+email="--register-unsafely-without-email"
 domains=()
-function_to_call=0
+arguments=("$@")
+
+help_main(){
+  echo "Usage: mollusk.sh [FUNCTION]"
+  echo ""
+  echo "[FUNCTION]"
+  echo "ssl       Create new SSL certificates"
+  echo "renew     Renew SSL certificates"
+  echo "backup    Backup the database"
+  echo "restore   Restore the database from most recent backup"
+  echo ""
+  echo "Pass a function name for more information on how to use it"
+  echo "Example: mollusk.sh backup"
+  echo ""
+  exit
+}
+
+help_ssl(){
+  echo "Usage: mollusk.sh ssl [OPTIONS] [DOMAINS]"
+  echo ""
+  echo "[OPTIONS]"
+  echo "-s         Staging mode, generate SSL certs for testing"
+  echo "-e=EMAIL   Optional email to use when generating certs"
+  echo ""
+  echo "[DOMAINS]"
+  echo "You can list as many domains as you want, delimited by spaces"
+  echo ""
+  echo "Example: mollusk.sh ssl -s -e=myself@example.com example.com testing.org"
+  echo "Example: mollusk.sh ssl example.com testing.org"
+  echo ""
+  exit
+}
+
+help_backup(){
+  echo "Usage: mollusk.sh backup [TBD]"
+  echo ""
+  echo "[TBD]"
+  echo "-tbd   tbd"
+  echo ""
+  echo "Example: mollusk.sh backup ???"
+  echo ""
+  exit
+}
+
+help_restore(){
+  echo "Usage: mollusk.sh restore [TBD]"
+  echo ""
+  echo "[TBD]"
+  echo "-tbd   tbd"
+  echo ""
+  echo "Example: mollusk.sh restore ???"
+  echo ""
+  exit
+}
+
+pop_argument(){
+  arguments=("${arguments[@]:1}")
+}
+
+options_ssl(){
+  pop_argument # Remove the function
+
+  if [ ${#arguments[@]} = 0 ]; then
+    help_ssl
+  fi
+
+  for i in "${arguments[@]}"; do # Go through all user arguments
+
+    if [ "${i:0:1}" = "-" ]; then # If it's an option
+
+      if [ "$i" = "-s" ]; then # Option: Staging
+        staging="--staging"
+
+      elif [[ $i = "-e="* ]]; then # Option: Email
+        email="--email ${i:3}"
+
+      else
+        help_ssl
+      fi
+
+    else # If it's not an option, it will be a domain
+      domains+=("$i") # Store domain in array
+    fi
+  done
+
+  for i in "${domains[@]}"; do
+    generate_ssl "$i"
+  done
+}
+
+options_backup_or_restore(){
+  pop_argument # Remove the function
+
+  # if [ ${#arguments[@]} = 0 ]; then
+  #   help_"$1"
+  # fi
+
+  for i in "${arguments[@]}"; do # Go through all user arguments
+
+    if [ "${i:0:1}" = "-" ]; then # If it's an option
+      echo "OPTION: $i"
+    fi
+
+  done
+
+  execute_"$1"
+  restart_nginx
+}
 
 generate_ssl(){
   width=$(tput cols)
@@ -25,7 +132,7 @@ generate_ssl(){
   echo $bar
 
   domain_name=$1
-  volume_name=tundra_ssl_challenge
+  # volume_name=tundra_ssl_challenge
 
   # Check if NGINX configuration file exists
   nginx_config_path=./nginx_conf.d/$domain_name.conf
@@ -37,11 +144,11 @@ generate_ssl(){
   docker run -it --rm --name certbot          \
     -v tundra_ssl:/etc/letsencrypt            \
     -v tundra_ssl_challenge:/ssl_challenge    \
-    certbot/certbot certonly --register-unsafely-without-email --webroot --agree-tos \
+    certbot/certbot certonly "$email" --webroot --agree-tos \
     -w /ssl_challenge -d "$domain_name" "$staging"
 
   # Only remove the lines if the above was successful
-  lines=$(cat "./nginx_conf.d/$domain_name.conf" | grep -n ssl_certificate | cut -f1 -d:)
+  lines=$(< "./nginx_conf.d/$domain_name.conf" grep -n ssl_certificate | cut -f1 -d:)
   count=0
 
   for i in $lines; do
@@ -61,120 +168,7 @@ generate_ssl(){
   fi
 }
 
-check_options(){
-  if [ $# = 0 ]; then
-    # echo "Usage: mollusk.sh [OPTION]... [DOMAIN]..."
-    echo "Usage: mollusk.sh [FUNCTION]"
-    echo "Functions:"
-    echo "ssl       "
-    echo "backup    "
-    echo "restore   "
-    echo ""
-    echo "Pass a function name for more information on how to use it"
-    echo "Example: mollusk.sh backup"
-    echo ""
-
-    # echo "Options:"
-    # echo "-s         Staging mode, generate SSL certs for testing"
-    # echo "-e=EMAIL   Optional email to use when generating certs"
-    # echo ""
-
-    exit
-  fi
-}
-
-check_options(){
-  if [ $# = 0 ]; then
-    echo "Usage: mollusk.sh [FUNCTION]"
-    echo "Functions:"
-    echo "backup    Backup the database"
-    echo "restore   Restore the database"
-    echo ""
-    exit
-  fi
-}
-
-scan_options(){
-  # Scan the command-line options and arguments the user provided
-  for i in "$@"; do
-
-    # If it's an option
-    if [ "${i:0:1}" = "-" ]; then
-
-      # Option: Staging
-      if [ "$i" = "-s" ]; then
-        staging="--staging"
-
-      # Option: Email
-      elif [[ $i = "-e="* ]]; then
-        email=${i:3}
-
-      # Invalid option
-      else
-        echo "Invalid option: ""$i"
-        exit
-      fi
-
-    # If it's not an option, then it will be a domain
-    else
-      # Store domain in array
-      domains+=("$i")
-    fi
-  done
-
-  # Create an ssl directory if it doesn't exist
-  # mkdir ssl -p
-  # I DON'T THINK I NEED TO CREATE AN SSL DIRECTORY ANYMORE
-
-  for i in "${domains[@]}"
-  do
-    generate_ssl "$i"
-  done
-}
-
-
-
-scan_options(){
-  for i in "$@"; do
-    # If it's an option
-    if [ "${i:0:1}" = "-" ]; then
-      echo "OPTION: $i"
-
-    # If it's not an option, then it will be a function
-    else
-
-      # If the user already specified a function
-      if [ $function_to_call != 0 ];then
-        echo "You can only choose one function: backup or restore"
-        exit
-
-      elif [ "$i" = "backup" ]; then
-        function_to_call="db_backup"
-
-      elif [ "$i" = "restore" ]; then
-        function_to_call="db_restore"
-
-      else
-        echo "Unkown function, must be either backup or restore"
-        exit
-      fi
-    fi
-  done
-
-  if [ $function_to_call = 0 ];then
-    echo "You must choose one function: backup or restore"
-    exit
-  fi
-
-  $function_to_call
-}
-
-restart_nginx(){
-  # Restart the NGINX server
-  docker restart $(docker container ls | grep nginx | grep -Eo '^[^ ]+')
-}
-
-db_backup(){
+execute_backup(){
   echo "Backing up the database..."
 
   # Save the container that has the word "mysql" in its name as a variable
@@ -202,7 +196,7 @@ db_backup(){
   docker exec "$mysql_container" bash -c "rm $db_filename"
 }
 
-db_restore(){
+execute_restore(){
   echo "Restoring the database..."
 
   # Save the container that has the word "mysql" in its name as a variable
@@ -232,21 +226,44 @@ db_restore(){
   docker exec "$mysql_container" bash -c "rm $db_filename"
 }
 
-finished(){
-  echo "=================================================="
-  echo "====================== DONE ======================"
-  echo "=================================================="
+restart_nginx(){
+  docker restart "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')"
+  # docker restart $(docker container ls | grep nginx | grep -Eo '^[^ ]+')
 }
 
-check_options "$@"
-scan_options "$@"
-restart_nginx
-finished
+renew_certificates(){
+  docker run -it --rm --name certbot        \
+  -v /home/centos/swag/ssl:/etc/letsencrypt \
+  certbot/certbot renew
+}
 
-###############################################
-# RENEWAL SCRIPT
-#
-# docker run -it --rm --name certbot          \
-#   -v /home/centos/swag/ssl:/etc/letsencrypt \
-#   certbot/certbot renew
-###############################################
+main(){
+
+  function="${arguments[0]}"
+
+  if [ "$function" = "ssl" ]; then
+
+    options_ssl
+
+  elif [ "$function" = "renew" ]; then
+
+    renew_certificates
+
+  elif [ "$function" = "backup" ]; then
+
+    options_backup_or_restore "backup"
+
+  elif [ "$function" = "restore" ]; then
+
+    options_backup_or_restore "restore"
+
+  else
+    help_main
+  fi
+}
+
+main
+
+echo "=================================================="
+echo "====================== DONE ======================"
+echo "=================================================="
