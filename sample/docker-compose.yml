@@ -1,0 +1,52 @@
+version: "3"
+services:
+
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./single_files/dhparam.pem:/dhparam.pem
+      - ./single_files/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx_conf.d:/etc/nginx/conf.d
+      - ssl_challenge:/ssl_challenge
+      - ssl:/ssl
+
+  fizzic_al:
+    image: tundrafizz/web-test
+    ports:
+      - "9001:9001"
+
+  # mudki_ps:
+  #   image: tundrafizz/web-test
+  #   ports:
+  #     - "9002:80"
+
+  mysql:
+    image: mysql
+    entrypoint: ["/entrypoint.sh", "--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_ROOT_PASSWORD: "ENTER_PASSWORD_HERE"
+    volumes:
+      - sql_storage:/var/lib/mysql
+    environment:
+      AWS_ACCESS_KEY_ID: "00000000000000000000"
+      AWS_SECRET_ACCESS_KEY: "0000000000000000000000000000000000000000"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    volumes:
+      - ./single_files/config.inc.php:/etc/phpmyadmin/config.inc.php
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: "mysql"
+      PMA_PORT: "3306"
+    ports:
+      - "8080:80"
+
+volumes:
+  sql_storage:
+  ssl_challenge:
+  ssl:
