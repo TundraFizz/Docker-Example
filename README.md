@@ -9,6 +9,7 @@
 | `docker tag image-name repo:tag`          | Set an image's repository and tag           |
 | `docker rmi IMAGE_ID`                     | Delete a particular image                   |
 | `docker rmi -f $(docker images -q)`       | Delete all images                           |
+| `docker login`                            | You need to login before pushing            |
 | `docker push tundrafizz/image-name`       | Push an image to Docker's online repository |
 
 #### Containers
