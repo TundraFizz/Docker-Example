@@ -17,6 +17,7 @@
 | ------------------------------- | ------------------------------------- |
 | `docker container ls`           | List currently running containers     |
 | `docker container ls -aq`       | List all containers, only showing IDs |
+| `docker restart CONTAINER_ID`   | Restart a container                   |
 | `docker stop $(docker ps -aq)`  | Stop all containers                   |
 | `docker rm -f $(docker ps -aq)` | Delete all containers                 |
 
