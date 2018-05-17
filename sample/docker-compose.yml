@@ -18,10 +18,10 @@ services:
     ports:
       - "9001:9001"
 
-  # mudki_ps:
-  #   image: tundrafizz/web-test
-  #   ports:
-  #     - "9002:80"
+  mudki_ps:
+    image: tundrafizz/web-test
+    ports:
+      - "9002:80"
 
   mysql:
     image: mysql
