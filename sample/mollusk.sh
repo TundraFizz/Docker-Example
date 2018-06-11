@@ -123,13 +123,17 @@ options_backup_or_restore(){
 }
 
 generate_conf_part_1(){
+  domain_name=$1
+  ip_address=$2
+  port_number=$3
+
   echo "server {
   listen 80;
-  server_name $1;
+  server_name $domain_name;
 
   location / {
-    #rewrite ^/(.*)$ https://$1/\$1 permanent;
-    proxy_pass http://$2:$3;
+    #rewrite ^/(.*)$ https://$domain_name/\$1 permanent;
+    proxy_pass http://$ip_address:$port_number;
   }
 
   location /.well-known/acme-challenge/ {
@@ -139,15 +143,19 @@ generate_conf_part_1(){
 }
 
 generate_conf_part_2(){
+  domain_name=$1
+  ip_address=$2
+  port_number=$3
+
   echo "
 server {
   listen 443 ssl;
-  server_name $1;
+  server_name $domain_name;
 
   proxy_set_header X-Real-IP \$remote_addr;
 
-  ssl_certificate     /ssl/live/$1/fullchain.pem;
-  ssl_certificate_key /ssl/live/$1/privkey.pem;
+  ssl_certificate     /ssl/live/$domain_name/fullchain.pem;
+  ssl_certificate_key /ssl/live/$domain_name/privkey.pem;
 
   ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
   ssl_prefer_server_ciphers on;
@@ -165,8 +173,8 @@ server {
 
   ssl_dhparam /dhparam.pem;
 
-  location / {proxy_pass http://$2:$3;}
-}" >> ./nginx_conf.d/$1.conf
+  location / {proxy_pass http://$ip_address:$port_number;}
+}" >> ./nginx_conf.d/$domain_name.conf
 }
 
 generate_ssl(){
@@ -188,8 +196,7 @@ generate_ssl(){
 
   # Create a new configuration file for NGINX
   generate_conf_part_1 $domain_name $ip_address $port_number
-  generate_conf_part_2 $domain_name $ip_address $port_number
-  exit
+  echo "COMPLETE: generate_conf_part_1"
 
   if [ $staging = "true" ]; then
 
@@ -201,6 +208,8 @@ generate_ssl(){
     certbot/certbot certonly "$email" --webroot --agree-tos \
     -w /ssl_challenge --staging -d "$domain_name"
 
+    echo "COMPLETE: certbot in staging mode"
+
   else
 
     # Production mode
@@ -211,29 +220,12 @@ generate_ssl(){
     certbot/certbot certonly "$email" --webroot --agree-tos \
     -w /ssl_challenge -d "$domain_name"
 
+    echo "COMPLETE: certbot in production mode"
+
   fi
 
-  exit
-
-  # Only remove the lines if the above was successful
-  lines=$(< "./nginx_conf.d/$domain_name.conf" grep -n ssl_certificate | cut -f1 -d:)
-  count=0
-
-  for i in $lines; do
-    count=$((count+1))
-  done
-
-  if [ $count = 0 ]; then
-    echo "No SSL certificate paths in the configuration file"
-  else
-    echo "Uncommenting SSL certificate paths in the configuration file"
-
-    for i in $lines; do
-      echo "Line: ""$i" "$(sed "$i"'!d' nginx_conf.d/fizzic.al.conf)"
-
-      sed -i "$i""s/#//" "./nginx_conf.d/$domain_name.conf"
-    done
-  fi
+  generate_conf_part_2 $domain_name $ip_address $port_number
+  echo "COMPLETE: generate_conf_part_2"
 }
 
 execute_backup(){
