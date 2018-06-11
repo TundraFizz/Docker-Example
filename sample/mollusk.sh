@@ -132,7 +132,7 @@ generate_conf_part_1(){
   server_name $domain_name;
 
   location / {
-    #rewrite ^/(.*)$ https://$domain_name/\$1 permanent;
+    rewrite ^/(.*)$ https://$domain_name/\$1 permanent;
     proxy_pass http://$ip_address:$port_number;
   }
 
@@ -195,8 +195,9 @@ generate_ssl(){
   docker_stack_name="sample"
 
   # Create a new configuration file for NGINX
+
   generate_conf_part_1 $domain_name $ip_address $port_number
-  echo "COMPLETE: generate_conf_part_1"
+  restart_nginx
 
   if [ $staging = "true" ]; then
 
@@ -225,7 +226,7 @@ generate_ssl(){
   fi
 
   generate_conf_part_2 $domain_name $ip_address $port_number
-  echo "COMPLETE: generate_conf_part_2"
+  restart_nginx
 }
 
 execute_backup(){
@@ -287,8 +288,19 @@ execute_restore(){
 }
 
 restart_nginx(){
-  docker restart "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')"
-  # docker restart $(docker container ls | grep nginx | grep -Eo '^[^ ]+')
+  # docker restart "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')"
+
+  # Reloading NGINX config
+  docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload
+
+  # Wait a little bit
+  sleep 2
+
+  # while ! docker container ls | grep nginx; do
+  #   echo "Nothing yet, waiting..."
+  #   sleep 1
+  # done
+  # echo "NGINX is back up and running!"
 }
 
 renew_certificates(){
