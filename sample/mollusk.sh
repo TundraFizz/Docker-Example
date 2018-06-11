@@ -8,7 +8,7 @@
 #####################################################################################################
 
 # Default values for command-line options
-staging=""
+staging="false"
 email="--register-unsafely-without-email"
 domains=()
 arguments=("$@")
@@ -29,17 +29,19 @@ help_main(){
 }
 
 help_ssl(){
-  echo "Usage: mollusk.sh ssl [OPTIONS] [DOMAINS]"
+  echo "Usage: mollusk.sh ssl [OPTIONS] [DOMAINS/PORTS]"
   echo ""
   echo "[OPTIONS]"
   echo "-s         Staging mode, generate SSL certs for testing"
   echo "-e=EMAIL   Optional email to use when generating certs"
   echo ""
-  echo "[DOMAINS]"
-  echo "You can list as many domains as you want, delimited by spaces"
+  echo "[DOMAINS/PORTS]"
+  echo "Each domain must contain a port which is joined by a colon"
+  echo "An example of a valid domain/port is example.com:9001"
+  echo "You can list as many domain/port pairs as you want, delimited by spaces"
   echo ""
-  echo "Example: mollusk.sh ssl -s -e=myself@example.com example.com testing.org"
-  echo "Example: mollusk.sh ssl example.com testing.org"
+  echo "Example: mollusk.sh ssl example.com:9001"
+  echo "Example: mollusk.sh ssl -s -e=myself@example.com example.com:9002 testing.org:9003"
   echo ""
   exit
 }
@@ -82,7 +84,7 @@ options_ssl(){
     if [ "${i:0:1}" = "-" ]; then # If it's an option
 
       if [ "$i" = "-s" ]; then # Option: Staging
-        staging="--staging"
+        staging="true"
 
       elif [[ $i = "-e="* ]]; then # Option: Email
         email="--email ${i:3}"
@@ -120,32 +122,98 @@ options_backup_or_restore(){
   restart_nginx
 }
 
+generate_conf_part_1(){
+  echo "server {
+  listen 80;
+  server_name $1;
+
+  location / {
+    #rewrite ^/(.*)$ https://$1/\$1 permanent;
+    proxy_pass http://$2:$3;
+  }
+
+  location /.well-known/acme-challenge/ {
+    alias /ssl_challenge/.well-known/acme-challenge/;
+  }
+}" > ./nginx_conf.d/$1.conf
+}
+
+generate_conf_part_2(){
+  echo "
+server {
+  listen 443 ssl;
+  server_name $1;
+
+  proxy_set_header X-Real-IP \$remote_addr;
+
+  ssl_certificate     /ssl/live/$1/fullchain.pem;
+  ssl_certificate_key /ssl/live/$1/privkey.pem;
+
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  ssl_prefer_server_ciphers on;
+  ssl_ciphers \"ssl_ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS\";
+  ssl_ecdh_curve secp384r1;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_tickets off;
+  ssl_stapling on;
+  ssl_stapling_verify on;
+  resolver 8.8.8.8 8.8.4.4 valid=300s;
+  resolver_timeout 5s;
+  add_header Strict-Transport-Security \"max-age=63072000; includeSubdomains\";
+  add_header X-Frame-Options DENY;
+  add_header X-Content-Type-Options nosniff;
+
+  ssl_dhparam /dhparam.pem;
+
+  location / {proxy_pass http://$2:$3;}
+}" >> ./nginx_conf.d/$1.conf
+}
+
 generate_ssl(){
   width=$(tput cols)
   bar="="
-
   for (( i=1; i<=width-1; i++ )); do
     bar="$bar""="
   done
   echo $bar
-  echo "| Generating SSL for: $1"
+  echo "| Generating SSL for $1"
   echo $bar
 
-  domain_name=$1
-  # volume_name=tundra_ssl_challenge
+  IFS=":"
+  read -ra temp <<< "$1"
+  domain_name=${temp[0]}
+  port_number=${temp[1]}
+  ip_address=$(curl -s ifconfig.co)
+  docker_stack_name="sample"
 
-  # Check if NGINX configuration file exists
-  nginx_config_path=./nginx_conf.d/$domain_name.conf
-  if [ ! -f "$nginx_config_path" ]; then
-    echo "ERROR: Configuration file was not found at $nginx_config_path"
-    exit
+  # Create a new configuration file for NGINX
+  generate_conf_part_1 $domain_name $ip_address $port_number
+  generate_conf_part_2 $domain_name $ip_address $port_number
+  exit
+
+  if [ $staging = "true" ]; then
+
+    # Staging mode
+
+    docker run -it --rm --name certbot                      \
+    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
+    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
+    certbot/certbot certonly "$email" --webroot --agree-tos \
+    -w /ssl_challenge --staging -d "$domain_name"
+
+  else
+
+    # Production mode
+
+    docker run -it --rm --name certbot                      \
+    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
+    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
+    certbot/certbot certonly "$email" --webroot --agree-tos \
+    -w /ssl_challenge -d "$domain_name"
+
   fi
 
-  docker run -it --rm --name certbot          \
-    -v tundra_ssl:/etc/letsencrypt            \
-    -v tundra_ssl_challenge:/ssl_challenge    \
-    certbot/certbot certonly "$email" --webroot --agree-tos \
-    -w /ssl_challenge -d "$domain_name" "$staging"
+  exit
 
   # Only remove the lines if the above was successful
   lines=$(< "./nginx_conf.d/$domain_name.conf" grep -n ssl_certificate | cut -f1 -d:)
