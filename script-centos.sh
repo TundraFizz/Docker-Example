@@ -15,6 +15,9 @@ do
   usermod -aG docker $x
 done
 
+# Add Google's DNS to the Docker daemon; this allows Docker containers to connect to the internet
+echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
+
 # Enable docker to automatically start on boot
 systemctl enable docker
 
