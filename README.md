@@ -44,7 +44,7 @@
 Create a container from image manually
 `docker run --name=sample -d tundrafizz/sample-app`
 
-#### Other notes
+#### Other notes [1]
 
 `sudo yum -y install epel-release`
 `sudo curl -sL https://rpm.nodesource.com/setup_8.x | sudo bash -`
@@ -73,3 +73,17 @@ Create a container from image manually
 
 `docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') bash`
 `docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload`
+
+#### Other notes [2]
+
+# For some reason, downloading the image is EXTREMELY SLOW when I do it through
+# this automated script. So instead, do the last three commands manually
+
+# Download the test image
+wget -P /home/centos/ https://s3-us-west-2.amazonaws.com/leif-docker-images/node-test.tar
+
+# Load the image
+docker load -i /home/centos/node-test.tar
+
+# Run the image on port 4000
+docker run -p 4000:9001 leif/node-web-app
