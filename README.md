@@ -43,3 +43,33 @@
 
 Create a container from image manually
 `docker run --name=sample -d tundrafizz/sample-app`
+
+#### Other notes
+
+`sudo yum -y install epel-release`
+`sudo curl -sL https://rpm.nodesource.com/setup_8.x | sudo bash -`
+`sudo yum -y install nodejs`
+`sudo npm i -g nodemon`
+
+`docker run -it -d -p 8080:8080 -e HOST=54.202.110.238 -v /var/run/docker.sock:/var/run/docker.sock docker.io/dockersamples/visualizer:latest`
+
+# To get RAM, convert the below results: Kibibyte -> Gibibyte
+`free`
+
+# MySQL
+`docker pull mysql/mysql-server`
+`docker run --name=mysql1 -d mysql/mysql-server`
+`docker run --name=sample -d tundrafizz/sample-app`
+`docker logs mysql1 2>&1 | grep GENERATED`
+`docker exec -it mysql1 mysql -uroot -p`
+`ALTER USER 'root'@'localhost' IDENTIFIED BY 'MyNewPassword';`
+
+# This is used to SSH into a docker container. This is useful, but probably won't be needed very often
+`docker exec -it 66f1859e1583 bash`
+`docker exec -it 66f1859e1583 /bin/sh`
+
+`docker cp <container>:/path/to/file.ext .`
+`docker cp file.ext <container>:/path/to/file.ext`
+
+`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') bash`
+`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload`
