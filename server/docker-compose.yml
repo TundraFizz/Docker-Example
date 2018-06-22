@@ -1,11 +1,15 @@
-version: "3"
+version: "3.6"
 services:
 
   nginx:
     image: nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - published: 80
+        target: 80
+        mode: host
+      - published: 443
+        target: 443
+        mode: host
     volumes:
       - ./single_files/dhparam.pem:/dhparam.pem         # Custom DH parameters
       - ./single_files/nginx.conf:/etc/nginx/nginx.conf # Custom NGINX config file
@@ -13,40 +17,36 @@ services:
       - ssl_challenge:/ssl_challenge
       - ssl:/ssl
 
-  fizzic_al:
+  mysql:
+    image: mysql
+    volumes:
+      - sql_storage:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "fizz"
+    entrypoint: ["/entrypoint.sh", "--default-authentication-plugin=mysql_native_password"]
+    deploy:
+      resources:
+        limits:
+          memory: 450M
+
+  coss-stats-io:
     image: coss-stats
-    ports:
-      - "9001:80"
+    volumes:
+      - ./logs:/usr/src/app/log
     depends_on:
       - mysql
 
-  mysql:
-    image: mysql
-    entrypoint: ["/entrypoint.sh", "--default-authentication-plugin=mysql_native_password"]
-    environment:
-      MYSQL_ROOT_PASSWORD: "fizz"
-    volumes:
-      - sql_storage:/var/lib/mysql
-    ports:
-      - "3306:3306"
-
-    # environment:
-    #   AWS_ACCESS_KEY_ID: "00000000000000000000"
-      # AWS_SECRET_ACCESS_KEY: "0000000000000000000000000000000000000000"
-
-  phpmyadmin:
+  mudki-ps: # phpMyAdmin
     image: phpmyadmin/phpmyadmin
     volumes:
       - ./single_files/config.inc.php:/etc/phpmyadmin/config.inc.php # Custom phpMyAdmin config file
       - ./single_files/header.twig:/www/templates/login/header.twig  # Mod to hide the "https mismatch" error
       - ./single_files/index.php:/www/index.php                      # Mod to hide the SSL status
-    depends_on:
-      - mysql
     environment:
       PMA_HOST: "mysql"
       PMA_PORT: "3306"
-    ports:
-      - "8080:80"
+    depends_on:
+      - mysql
 
 volumes:
   sql_storage:
