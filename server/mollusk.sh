@@ -240,7 +240,7 @@ execute_backup(){
   docker exec "$mysql_container" bash -c "apt-get install -y python-pip"
   docker exec "$mysql_container" bash -c "pip install awscli"
 
-  current_time=$(date "+%Y-%m-%dT%H:%M:%S")
+  current_time=$(date "+%Y-%m-%dT%H-%M-%S")
   bucket_name="leif-mysql-backups"
   db_username="root"
   db_password="ENTER_PASSWORD_HERE"
