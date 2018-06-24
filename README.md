@@ -87,3 +87,4 @@ docker load -i /home/centos/node-test.tar
 
 # Run the image on port 4000
 docker run -p 4000:9001 leif/node-web-app
+
