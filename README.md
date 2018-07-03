@@ -32,7 +32,7 @@
 #### Services
 | Command                                             | Description                               |
 | --------------------------------------------------- | ----------------------------------------- |
-| `docker stack deploy -c docker-compoase.yml sample` | Create services from a stack/compose file |
+| `docker stack deploy -c docker-compose.yml sample`  | Create services from a stack/compose file |
 | `docker node ls`                                    | List all workers/managers in the swarm    |
 | `docker node ps $(docker node ls -q)`               | List all tasks across all nodes           |
 | `docker service ls`                                 | List all services in the swarm            |
