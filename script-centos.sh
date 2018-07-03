@@ -7,7 +7,7 @@ setenforce 0
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
 
 # Install nano and wget
-yum -y install nano wget
+yum -y install git nano wget
 
 # These three lines download Docker: Community Edition
 # I want the community edition because it's a later version of the regular Docker
