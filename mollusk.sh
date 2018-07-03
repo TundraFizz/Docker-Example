@@ -48,13 +48,17 @@ help_ssl(){
 }
 
 help_nconf(){
-  # echo "Usage: mollusk.sh nconf -c [CONTAINER] -u [UPSTREAM] -s [SERVER]"
   echo "Usage: mollusk.sh nconf -c [CONTAINER] -s [SERVER]"
   echo ""
   echo "[PARAMETERS]"
   echo "-c Container name that contains the service to forward to"
   echo "-s Server name(s)"
   echo ""
+  echo "[OPTIONS]"
+  echo "-p Port number (default = 80)"
+  echo ""
+  echo "Example: mollusk.sh nconf -c sample-app -s 34.218.241.246"
+  echo "Example: mollusk.sh nconf -c phpmyadmin -s 34.218.241.246 -p 9000"
   echo "Example: mollusk.sh nconf -c samples -s sample-data.com"
   echo "Example: mollusk.sh nconf -c example -s example.com www.example.com"
   echo ""
@@ -97,6 +101,7 @@ options_nconf(){
   current_param=""
   container_name=""
   server_names=()
+  port="80"
 
   for i in "${arguments[@]}"; do # Go through all user arguments
 
@@ -104,22 +109,18 @@ options_nconf(){
     if [ "${i:0:1}" = "-" ]; then
       current_param="${i}"
     elif [ "${current_param}" = "-c" ]; then
-      # echo "CONTAINER: ${i}"
       container_name="${i}"
     elif [ "${current_param}" = "-s" ]; then
-      # echo "SERVER: ${i}"
       server_names+=("${i}")
+    elif [ "${current_param}" = "-p" ]; then
+      port="${i}"
     else
       echo "ERROR! Unrecognized parameter: ${current_param}"
     fi
   done
 
-  # Use the first server_name as the upstream name
-  # OR
-  # use the container_name??????????
-
-  # upstream_name="${container_name}"
-  upstream_name="abcdef"
+  # Use the container's name as the upstream's name
+  upstream_name="${container_name}"
   server_name=""
 
   for i in "${server_names[@]}"; do
@@ -129,7 +130,7 @@ options_nconf(){
   # Now generate the NXINX config file
   echo "upstream ${upstream_name} {server ${container_name}:80;}"   > abc.conf
   echo "server {"                                                  >> abc.conf
-  echo "  listen 80;"                                              >> abc.conf
+  echo "  listen ${port};"                                         >> abc.conf
   echo "  server_name${server_name};"                              >> abc.conf
   echo "  location / {proxy_pass http://${upstream_name};}"        >> abc.conf
   echo "}"                                                         >> abc.conf
