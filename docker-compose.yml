@@ -10,6 +10,9 @@ services:
       - published: 443
         target: 443
         mode: host
+      - published: 9000 # Temporary for phpmyadmin; recommended to remove for a URL
+        target: 9000    # Temporary for phpmyadmin; recommended to remove for a URL
+        mode: host
     volumes:
       - ./single_files/dhparam.pem:/dhparam.pem         # Custom DH parameters
       - ./single_files/nginx.conf:/etc/nginx/nginx.conf # Custom NGINX config file
@@ -29,14 +32,14 @@ services:
         limits:
           memory: 450M
 
-  sample-app-com:
+  sample-app:
     image: sample-app
     volumes:
       - ./logs:/usr/src/app/log
     depends_on:
       - mysql
 
-  mudki-ps: # phpMyAdmin
+  phpmyadmin:
     image: phpmyadmin/phpmyadmin
     volumes:
       - ./single_files/config.inc.php:/etc/phpmyadmin/config.inc.php # Custom phpMyAdmin config file
