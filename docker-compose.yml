@@ -27,10 +27,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: "fizz"
     entrypoint: ["/entrypoint.sh", "--default-authentication-plugin=mysql_native_password"]
-    deploy:
-      resources:
-        limits:
-          memory: 450M
 
   sample-app:
     image: sample-app
