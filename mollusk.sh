@@ -128,12 +128,12 @@ options_nconf(){
   done
 
   # Now generate the NXINX config file
-  echo "upstream ${upstream_name} {server ${container_name}:80;}"   > abc.conf
-  echo "server {"                                                  >> abc.conf
-  echo "  listen ${port};"                                         >> abc.conf
-  echo "  server_name${server_name};"                              >> abc.conf
-  echo "  location / {proxy_pass http://${upstream_name};}"        >> abc.conf
-  echo "}"                                                         >> abc.conf
+  echo "upstream ${upstream_name} {server ${container_name}:80;}"   > "nginx_conf.d/${container_name}".conf
+  echo "server {"                                                  >> "nginx_conf.d/${container_name}".conf
+  echo "  listen ${port};"                                         >> "nginx_conf.d/${container_name}".conf
+  echo "  server_name${server_name};"                              >> "nginx_conf.d/${container_name}".conf
+  echo "  location / {proxy_pass http://${upstream_name};}"        >> "nginx_conf.d/${container_name}".conf
+  echo "}"                                                         >> "nginx_conf.d/${container_name}".conf
 
   restart_nginx
   # clear; bash mollusk.sh nconf -c sample-app -s 34.218.241.246
