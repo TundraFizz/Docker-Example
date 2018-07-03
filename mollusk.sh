@@ -18,6 +18,7 @@ help_main(){
   echo ""
   echo "[FUNCTION]"
   echo "ssl       Create new SSL certificates"
+  echo "nconf     Generate a basic NGINX config file"
   echo "renew     Renew SSL certificates"
   echo "backup    Backup the database"
   echo "restore   Restore the database from most recent backup"
@@ -46,11 +47,25 @@ help_ssl(){
   exit
 }
 
+help_nconf(){
+  # echo "Usage: mollusk.sh nconf -c [CONTAINER] -u [UPSTREAM] -s [SERVER]"
+  echo "Usage: mollusk.sh nconf -c [CONTAINER] -s [SERVER]"
+  echo ""
+  echo "[PARAMETERS]"
+  echo "-c Container name that contains the service to forward to"
+  echo "-s Server name(s)"
+  echo ""
+  echo "Example: mollusk.sh nconf -c samples -s sample-data.com"
+  echo "Example: mollusk.sh nconf -c example -s example.com www.example.com"
+  echo ""
+  exit
+}
+
 help_backup(){
   echo "Usage: mollusk.sh backup [TBD]"
   echo ""
   echo "[TBD]"
-  echo "-tbd   tbd"
+  echo "-tbd tbd"
   echo ""
   echo "Example: mollusk.sh backup ???"
   echo ""
@@ -61,7 +76,7 @@ help_restore(){
   echo "Usage: mollusk.sh restore [TBD]"
   echo ""
   echo "[TBD]"
-  echo "-tbd   tbd"
+  echo "-tbd tbd"
   echo ""
   echo "Example: mollusk.sh restore ???"
   echo ""
@@ -72,10 +87,61 @@ pop_argument(){
   arguments=("${arguments[@]:1}")
 }
 
-options_ssl(){
+options_nconf(){
   pop_argument # Remove the function
 
   if [ ${#arguments[@]} = 0 ]; then
+    help_nconf
+  fi
+
+  current_param=""
+  container_name=""
+  server_names=()
+
+  for i in "${arguments[@]}"; do # Go through all user arguments
+
+    # If the argument starts with a dash, then set it as the current parameter
+    if [ "${i:0:1}" = "-" ]; then
+      current_param="${i}"
+    elif [ "${current_param}" = "-c" ]; then
+      # echo "CONTAINER: ${i}"
+      container_name="${i}"
+    elif [ "${current_param}" = "-s" ]; then
+      # echo "SERVER: ${i}"
+      server_names+=("${i}")
+    else
+      echo "ERROR! Unrecognized parameter: ${current_param}"
+    fi
+  done
+
+  # Use the first server_name as the upstream name
+  # OR
+  # use the container_name??????????
+
+  # upstream_name="${container_name}"
+  upstream_name="abcdef"
+  server_name=""
+
+  for i in "${server_names[@]}"; do
+    server_name+=" $i"
+  done
+
+  # Now generate the NXINX config file
+  echo "upstream ${upstream_name} {server ${container_name}:80;}"   > abc.conf
+  echo "server {"                                                  >> abc.conf
+  echo "  listen 80;"                                              >> abc.conf
+  echo "  server_name${server_name};"                              >> abc.conf
+  echo "  location / {proxy_pass http://${upstream_name};}"        >> abc.conf
+  echo "}"                                                         >> abc.conf
+
+  restart_nginx
+  # clear; bash mollusk.sh nconf -c sample-app -s 34.218.241.246
+}
+
+options_ssl(){
+  pop_argument # Remove the function
+
+  if [ "${#arguments[@]}" = 0 ]; then
     help_ssl
   fi
 
@@ -86,7 +152,7 @@ options_ssl(){
       if [ "$i" = "-s" ]; then # Option: Staging
         staging="true"
 
-      elif [[ $i = "-e="* ]]; then # Option: Email
+      elif [[ "$i" = "-e="* ]]; then # Option: Email
         email="--email ${i:3}"
 
       else
@@ -139,7 +205,7 @@ generate_conf_part_1(){
   location /.well-known/acme-challenge/ {
     alias /ssl_challenge/.well-known/acme-challenge/;
   }
-}" > ./nginx_conf.d/$1.conf
+}" > ./nginx_conf.d/"$1".conf
 }
 
 generate_conf_part_2(){
@@ -174,7 +240,7 @@ server {
   ssl_dhparam /dhparam.pem;
 
   location / {proxy_pass http://$ip_address:$port_number;}
-}" >> ./nginx_conf.d/$domain_name.conf
+}" >> ./nginx_conf.d/"$domain_name".conf
 }
 
 generate_ssl(){
@@ -196,7 +262,7 @@ generate_ssl(){
 
   # Create a new configuration file for NGINX
 
-  generate_conf_part_1 $domain_name $ip_address $port_number
+  generate_conf_part_1 "$domain_name" "$ip_address" "$port_number"
   restart_nginx
 
   if [ $staging = "true" ]; then
@@ -225,7 +291,7 @@ generate_ssl(){
 
   fi
 
-  generate_conf_part_2 $domain_name $ip_address $port_number
+  generate_conf_part_2 "$domain_name" "$ip_address" "$port_number"
   restart_nginx
 }
 
@@ -291,7 +357,7 @@ restart_nginx(){
   # docker restart "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')"
 
   # Reloading NGINX config
-  docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload
+  docker exec -it "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')" nginx -s reload
 
   # Wait a little bit
   sleep 2
@@ -316,6 +382,10 @@ main(){
   if [ "$function" = "ssl" ]; then
 
     options_ssl
+
+  elif [ "$function" = "nconf" ]; then
+
+    options_nconf
 
   elif [ "$function" = "renew" ]; then
 
