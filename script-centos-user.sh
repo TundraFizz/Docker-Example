@@ -28,13 +28,13 @@ sudo reboot
 ################################################################################
 # Steps:
 
+mkdir a && cd a
+
 # 1. Download source of Node.JS application
 git clone https://github.com/TundraFizz/Docker-Example .
 
 # 2. Create Docker image
-cd sample-app
-docker build -t sample-app .
-cd ..
+docker build -t sample-app sample-app
 
 # 3. Download setup files [single_files | docker-compose | mollusk.sh]
 # 4.
