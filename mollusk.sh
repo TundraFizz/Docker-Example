@@ -112,6 +112,7 @@ options_nconf(){
       container_name="${i}"
     elif [ "${current_param}" = "-s" ]; then
 
+      # Special case, get the EC2 instance's public IPv4 address
       if [ "${i}" = "ip" ]; then
         i="$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
       fi
