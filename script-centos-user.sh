@@ -25,30 +25,4 @@ sudo systemctl enable docker
 sudo usermod -aG docker $USER
 sudo reboot
 
-
-
-
-
-
-
-
-
-################################################################################
-# Steps:
-# 1. Create a new directory
-# mkdir a && cd a
-#
-# 2. Download source of Node.JS application
-# git clone https://github.com/TundraFizz/Docker-Example .
-#
-# 3. Create Docker image
-# docker build -t sample-app sample-app
-#
-# 4. Build NGINX configuration files
-# bash mollusk.sh nconf -c sample-app -s ip
-# bash mollusk.sh nconf -c phpmyadmin -s ip -p 9000
-#
-# 5. Initialize a Docker swarm and deploy
-# docker swarm init
-# docker stack deploy -c docker-compose.yml sample
-################################################################################
+# After reboot you may run: bash setup.sh
