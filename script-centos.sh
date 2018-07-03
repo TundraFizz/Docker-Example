@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Update CentOS
+# sudo yum -y update
+
 # Disable SELinux
 setenforce 0
 
@@ -42,9 +45,10 @@ reboot
 # docker build -t sample-app sample-app
 #
 # 4. Build NGINX configuration files
-# bash mollusk.sh nconf -c sample-app -s 34.218.241.246
-# bash mollusk.sh nconf -c phpmyadmin -s 34.218.241.246 -p 9000
+# bash mollusk.sh nconf -c sample-app -s ip
+# bash mollusk.sh nconf -c phpmyadmin -s ip -p 9000
 #
-# 5. Deploy
+# 5. Initialize a Docker swarm and deploy
+# docker swarm init
 # docker stack deploy -c docker-compose.yml sample
 ################################################################################
