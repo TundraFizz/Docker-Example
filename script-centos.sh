@@ -6,13 +6,14 @@ setenforce 0
 # Disable SELinux permanently
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
 
-# Install docker and wget
-yum -y install docker wget
+# Install nano and wget
+yum -y install nano wget
 
-# These three lines get the most recent up-to-date version of Docker
-sudo yum -y install -y yum-utils device-mapper-persistent-data lvm2
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-sudo yum -y install docker-ce
+# These three lines download Docker: Community Edition
+# I want the community edition because it's a later version of the regular Docker
+yum -y install -y yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+yum -y install docker-ce
 
 # Create the "docker" group
 groupadd docker
@@ -27,7 +28,8 @@ do
 done
 
 # Add Google's DNS to the Docker daemon; this allows Docker containers to connect to the internet
-echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
+# NOT NEEDED?!
+# echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
 
 # Enable docker to automatically start on boot
 systemctl enable docker

@@ -29,8 +29,8 @@ services:
         limits:
           memory: 450M
 
-  coss-stats-io:
-    image: coss-stats
+  sample-app-com:
+    image: sample-app
     volumes:
       - ./logs:/usr/src/app/log
     depends_on:

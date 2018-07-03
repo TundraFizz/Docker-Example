@@ -1,0 +1,33 @@
+{
+  "name": "nodejs-skeleton",
+  "version": "1.0.0",
+  "description": "The simplest NodeJS web application possible while using Express.",
+  "main": "server.js",
+  "bin": "server.js",
+  "author": "Tundra Fizz",
+  "license": "ISC",
+  "dependencies": {
+    "ejs": "latest",
+    "express": "latest"
+  },
+  "dependencies-comments": {
+    "express": "Web framework",
+    "ejs": "Templating engine"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {},
+  "pkg": {
+    "assets": [
+      "views/*",
+      "static/css/*",
+      "static/img/*",
+      "static/js/*"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TundraFizz/NodeJS-Skeleton.git"
+  }
+}
