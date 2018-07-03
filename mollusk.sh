@@ -52,15 +52,15 @@ help_nconf(){
   echo ""
   echo "[PARAMETERS]"
   echo "-c Container name that contains the service to forward to"
-  echo "-s Server name(s)"
+  echo "-s Server name(s); ip is special and will use the instance's public ipv4"
   echo ""
   echo "[OPTIONS]"
   echo "-p Port number (default = 80)"
   echo ""
-  echo "Example: mollusk.sh nconf -c sample-app -s 34.218.241.246"
-  echo "Example: mollusk.sh nconf -c phpmyadmin -s 34.218.241.246 -p 9000"
+  echo "Example: mollusk.sh nconf -c sample-app -s ip"
+  echo "Example: mollusk.sh nconf -c phpmyadmin -s ip -p 9000"
   echo "Example: mollusk.sh nconf -c samples -s sample-data.com"
-  echo "Example: mollusk.sh nconf -c example -s example.com www.example.com"
+  echo "Example: mollusk.sh nconf -c example -s example.com 34.218.241.246"
   echo ""
   exit
 }
@@ -111,6 +111,11 @@ options_nconf(){
     elif [ "${current_param}" = "-c" ]; then
       container_name="${i}"
     elif [ "${current_param}" = "-s" ]; then
+
+      if [ "${i}" = "ip" ]; then
+        i="$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
+      fi
+
       server_names+=("${i}")
     elif [ "${current_param}" = "-p" ]; then
       port="${i}"
