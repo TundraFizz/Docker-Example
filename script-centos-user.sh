@@ -18,29 +18,33 @@ sudo yum -y install docker-ce
 # Enable docker to automatically start on boot
 sudo systemctl enable docker
 
-# Start docker
-sudo systemctl start docker
-
-# Add the user to the docker group and then reboot
+# Add the user to the docker group and then reboot to apply the changes
 sudo usermod -aG docker $USER
 sudo reboot
 
+
+
+
+
+
+
+
+
 ################################################################################
 # Steps:
-
-mkdir a && cd a
-
-# 1. Download source of Node.JS application
-git clone https://github.com/TundraFizz/Docker-Example .
-
-# 2. Create Docker image
-docker build -t sample-app sample-app
-
-# 3. Download setup files [single_files | docker-compose | mollusk.sh]
-# 4.
-# 5.
-# 6.
+# 1. Create a new directory
+# mkdir a && cd a
+#
+# 2. Download source of Node.JS application
+# git clone https://github.com/TundraFizz/Docker-Example .
+#
+# 3. Create Docker image
+# docker build -t sample-app sample-app
+#
+# 4. Build NGINX configuration files
+# bash mollusk.sh nconf -c sample-app -s 34.218.241.246
+# bash mollusk.sh nconf -c phpmyadmin -s 34.218.241.246 -p 9000
+#
+# 5. Deploy
+# docker stack deploy -c docker-compose.yml sample
 ################################################################################
-
-# Restart the machine so that group permissions are applied
-sudo reboot
