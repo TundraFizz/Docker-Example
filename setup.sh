@@ -1,10 +1,8 @@
 #!/bin/bash
 
-# Create a new directory
-mkdir a && cd a
-
 # Download source of Node.JS application
 git clone https://github.com/TundraFizz/Docker-Example .
+cd Docker-Example
 
 # Create Docker image
 docker build -t sample-app sample-app
