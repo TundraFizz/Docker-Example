@@ -5,12 +5,11 @@
 # - Backing up databases                                                                            #
 # - Restoring databases from backups that were previously created                                   #
 # - Generating SSL certificates by using Let's Encrypt                                              #
+# - Renewing SSL certificates                                                                       #
+# - Generating basic NGINX configuration files                                                      #
 #####################################################################################################
 
 # Default values for command-line options
-staging="false"
-email="--register-unsafely-without-email"
-domains=()
 arguments=("$@")
 
 help_main(){
@@ -30,31 +29,34 @@ help_main(){
 }
 
 help_ssl(){
-  echo "Usage: mollusk.sh ssl [OPTIONS] [DOMAINS/PORTS]"
+  echo "Usage: mollusk.sh ssl [PARAMETERS] [OPTIONS] [FLAGS]"
+  echo ""
+  echo "[PARAMETERS]"
+  echo "-d Domain for the SSL certificate, you may optionally specify a port number (default is 80)"
+  echo "-n Name of the Docker service"
   echo ""
   echo "[OPTIONS]"
-  echo "-s       Staging mode, generate SSL certs for testing"
-  echo "-e EMAIL Optional email to use when generating certs"
+  echo "-e Email to use when generating certs"
   echo ""
-  echo "[DOMAINS/PORTS]"
-  echo "Each domain must contain a port which is joined by a colon"
-  echo "An example of a valid domain/port is example.com:9001"
-  echo "You can list as many domain/port pairs as you want, delimited by spaces"
+  echo "[FLAGS]"
+  echo "-s Staging mode, generate SSL certs for testing (default is production)"
   echo ""
-  echo "Example: mollusk.sh ssl example.com:9001"
-  echo "Example: mollusk.sh ssl -s -e=myself@example.com example.com:9002 testing.org:9003"
+  echo "Example: mollusk.sh ssl -d example.com -n example-com"
+  echo "Example: mollusk.sh ssl -d example.com:9001 -n example-com"
+  echo "Example: mollusk.sh ssl -d example.com -n example-com -s"
+  echo "Example: mollusk.sh ssl -d example.com:9001 -n example-com -e myself@example.com -s"
   echo ""
   exit
 }
 
 help_nconf(){
-  echo "Usage: mollusk.sh nconf [PARAMETERS] [OPTION]"
+  echo "Usage: mollusk.sh nconf [PARAMETERS] [OPTIONS]"
   echo ""
   echo "[PARAMETERS]"
   echo "-c Container name that contains the service to forward to"
   echo "-s Server name(s); ip is special and will use the instance's public ipv4"
   echo ""
-  echo "[OPTION]"
+  echo "[OPTIONS]"
   echo "-p Port number (default = 80)"
   echo ""
   echo "Example: mollusk.sh nconf -c sample-app -s ip"
@@ -92,8 +94,6 @@ pop_argument(){
 }
 
 options_nconf(){
-  pop_argument # Remove the function
-
   if [ ${#arguments[@]} = 0 ]; then
     help_nconf
   fi
@@ -142,38 +142,94 @@ options_nconf(){
   echo "}"                                                         >> "nginx_conf.d/${container_name}".conf
 
   restart_nginx
-  # clear; bash mollusk.sh nconf -c sample-app -s 34.218.241.246
 }
 
 options_ssl(){
-  pop_argument # Remove the function
-
   if [ "${#arguments[@]}" = 0 ]; then
     help_ssl
   fi
 
+  domain=""
+  name_of_service=""
+  email="--register-unsafely-without-email"
+  staging="false"
+
   for i in "${arguments[@]}"; do # Go through all user arguments
 
-    if [ "${i:0:1}" = "-" ]; then # If it's an option
+    if [ "${i}" = "-s" ]; then
+      staging="true"
+    fi
 
-      if [ "$i" = "-s" ]; then # Option: Staging
-        staging="true"
-
-      elif [[ "$i" = "-e="* ]]; then # Option: Email
-        email="--email ${i:3}"
-
-      else
-        help_ssl
-      fi
-
-    else # If it's not an option, it will be a domain
-      domains+=("$i") # Store domain in array
+    # If the argument starts with a dash, then set it as the current parameter
+    if [ "${i:0:1}" = "-" ]; then
+      current_param="${i}"
+    elif [ "${current_param}" = "-d" ]; then # Parameter: Domain
+      domain="${i}"
+    elif [ "${current_param}" = "-n" ]; then # Parameter: Service
+      name_of_service="${i}"
+    elif [ "${current_param}" = "-e" ]; then # Option: Email
+      email="--email ${i}"
+    # elif [ "${current_param}" = "-s" ]; then # Flag: Staging
+    #   staging="true"
+    else
+      echo "ERROR! Unrecognized parameter: ${current_param}"
     fi
   done
 
-  for i in "${domains[@]}"; do
-    generate_ssl "$i"
-  done
+  IFS=":"
+  read -ra temp <<< "${domain}"
+  domain_name=${temp[0]}
+  port_number=${temp[1]}
+  if [ "${port_number}" = "" ]; then
+    port_number="80"
+  fi
+
+  # Get the EC2 instance's public IPv4 address
+  ip_address="$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
+  docker_stack_name="sample"
+
+  echo "=============================="
+  echo "Domain |${domain}|"
+  echo "D Name |${domain_name}|"
+  echo "Port N |${port_number}|"
+  echo "Srvice |${name_of_service}|"
+  echo "Email  |${email}|"
+  echo "Stage  |${staging}|"
+  echo "=============================="
+  exit
+
+  # Create a new configuration file for NGINX
+  generate_conf_part_1 "$domain_name" "$ip_address" "$port_number"
+  restart_nginx
+
+  if [ $staging = "true" ]; then
+
+    # Staging mode
+
+    docker run -it --rm --name certbot                      \
+    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
+    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
+    certbot/certbot certonly "$email" --webroot --agree-tos \
+    -w /ssl_challenge --staging -d "$domain_name"
+
+    echo "COMPLETE: certbot in staging mode"
+
+  else
+
+    # Production mode
+
+    docker run -it --rm --name certbot                      \
+    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
+    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
+    certbot/certbot certonly "$email" --webroot --agree-tos \
+    -w /ssl_challenge -d "$domain_name"
+
+    echo "COMPLETE: certbot in production mode"
+
+  fi
+
+  generate_conf_part_2 "$domain_name" "$ip_address" "$port_number"
+  restart_nginx
 }
 
 options_backup_or_restore(){
@@ -196,6 +252,30 @@ options_backup_or_restore(){
 }
 
 generate_conf_part_1(){
+  domain_name=$1
+  ip_address=$2
+  port_number=$3
+
+  echo "
+  upstream mudki.ps {
+    server mudki-ps:80;
+  }
+
+  server {
+    listen 80;
+    server_name mudki.ps;
+
+    location / {
+      rewrite ^/(.*)$ https://mudki.ps/$1 permanent;
+    }
+
+    location /.well-known/acme-challenge/ {
+      alias /ssl_challenge/.well-known/acme-challenge/;
+    }
+  }" > ./nginx_conf.d/"$1".conf
+}
+
+generate_conf_part_1_old(){
   domain_name=$1
   ip_address=$2
   port_number=$3
@@ -248,58 +328,6 @@ server {
 
   location / {proxy_pass http://$ip_address:$port_number;}
 }" >> ./nginx_conf.d/"$domain_name".conf
-}
-
-generate_ssl(){
-  width=$(tput cols)
-  bar="="
-  for (( i=1; i<=width-1; i++ )); do
-    bar="$bar""="
-  done
-  echo $bar
-  echo "| Generating SSL for $1"
-  echo $bar
-
-  IFS=":"
-  read -ra temp <<< "$1"
-  domain_name=${temp[0]}
-  port_number=${temp[1]}
-  ip_address=$(curl -s ifconfig.co)
-  docker_stack_name="sample"
-
-  # Create a new configuration file for NGINX
-
-  generate_conf_part_1 "$domain_name" "$ip_address" "$port_number"
-  restart_nginx
-
-  if [ $staging = "true" ]; then
-
-    # Staging mode
-
-    docker run -it --rm --name certbot                      \
-    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
-    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
-    certbot/certbot certonly "$email" --webroot --agree-tos \
-    -w /ssl_challenge --staging -d "$domain_name"
-
-    echo "COMPLETE: certbot in staging mode"
-
-  else
-
-    # Production mode
-
-    docker run -it --rm --name certbot                      \
-    -v "$docker_stack_name"_ssl:/etc/letsencrypt            \
-    -v "$docker_stack_name"_ssl_challenge:/ssl_challenge    \
-    certbot/certbot certonly "$email" --webroot --agree-tos \
-    -w /ssl_challenge -d "$domain_name"
-
-    echo "COMPLETE: certbot in production mode"
-
-  fi
-
-  generate_conf_part_2 "$domain_name" "$ip_address" "$port_number"
-  restart_nginx
 }
 
 execute_backup(){
@@ -385,6 +413,7 @@ renew_certificates(){
 main(){
 
   function="${arguments[0]}"
+  pop_argument # Remove the function
 
   if [ "$function" = "ssl" ]; then
 
@@ -416,34 +445,3 @@ main
 echo "=================================================="
 echo "====================== DONE ======================"
 echo "=================================================="
-
-options_ssl_old(){
-  pop_argument # Remove the function
-
-  if [ "${#arguments[@]}" = 0 ]; then
-    help_ssl
-  fi
-
-  for i in "${arguments[@]}"; do # Go through all user arguments
-
-    if [ "${i:0:1}" = "-" ]; then # If it's an option
-
-      if [ "$i" = "-s" ]; then # Option: Staging
-        staging="true"
-
-      elif [[ "$i" = "-e="* ]]; then # Option: Email
-        email="--email ${i:3}"
-
-      else
-        help_ssl
-      fi
-
-    else # If it's not an option, it will be a domain
-      domains+=("$i") # Store domain in array
-    fi
-  done
-
-  for i in "${domains[@]}"; do
-    generate_ssl "$i"
-  done
-}
