@@ -17,11 +17,11 @@ help_main(){
   echo "Usage: mollusk.sh [FUNCTION]"
   echo ""
   echo "[FUNCTION]"
-  echo "ssl       Create new SSL certificates"
-  echo "nconf     Generate a basic NGINX config file"
-  echo "renew     Renew SSL certificates"
-  echo "backup    Backup the database"
-  echo "restore   Restore the database from most recent backup"
+  echo "ssl     Create new SSL certificates"
+  echo "nconf   Generate a basic NGINX config file"
+  echo "renew   Renew SSL certificates"
+  echo "backup  Backup the database"
+  echo "restore Restore the database from most recent backup"
   echo ""
   echo "Pass a function name for more information on how to use it"
   echo "Example: mollusk.sh backup"
@@ -33,8 +33,8 @@ help_ssl(){
   echo "Usage: mollusk.sh ssl [OPTIONS] [DOMAINS/PORTS]"
   echo ""
   echo "[OPTIONS]"
-  echo "-s         Staging mode, generate SSL certs for testing"
-  echo "-e=EMAIL   Optional email to use when generating certs"
+  echo "-s       Staging mode, generate SSL certs for testing"
+  echo "-e EMAIL Optional email to use when generating certs"
   echo ""
   echo "[DOMAINS/PORTS]"
   echo "Each domain must contain a port which is joined by a colon"
@@ -48,13 +48,13 @@ help_ssl(){
 }
 
 help_nconf(){
-  echo "Usage: mollusk.sh nconf -c [CONTAINER] -s [SERVER]"
+  echo "Usage: mollusk.sh nconf [PARAMETERS] [OPTION]"
   echo ""
   echo "[PARAMETERS]"
   echo "-c Container name that contains the service to forward to"
   echo "-s Server name(s); ip is special and will use the instance's public ipv4"
   echo ""
-  echo "[OPTIONS]"
+  echo "[OPTION]"
   echo "-p Port number (default = 80)"
   echo ""
   echo "Example: mollusk.sh nconf -c sample-app -s ip"
@@ -416,3 +416,34 @@ main
 echo "=================================================="
 echo "====================== DONE ======================"
 echo "=================================================="
+
+options_ssl_old(){
+  pop_argument # Remove the function
+
+  if [ "${#arguments[@]}" = 0 ]; then
+    help_ssl
+  fi
+
+  for i in "${arguments[@]}"; do # Go through all user arguments
+
+    if [ "${i:0:1}" = "-" ]; then # If it's an option
+
+      if [ "$i" = "-s" ]; then # Option: Staging
+        staging="true"
+
+      elif [[ "$i" = "-e="* ]]; then # Option: Email
+        email="--email ${i:3}"
+
+      else
+        help_ssl
+      fi
+
+    else # If it's not an option, it will be a domain
+      domains+=("$i") # Store domain in array
+    fi
+  done
+
+  for i in "${domains[@]}"; do
+    generate_ssl "$i"
+  done
+}
