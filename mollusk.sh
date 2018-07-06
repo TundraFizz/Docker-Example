@@ -68,29 +68,31 @@ help_ssl(){
 }
 
 help_backup(){
-  echo "Usage: mollusk.sh backup [TBD]"
+  echo "Usage: mollusk.sh backup [PARAMETERS]"
   echo ""
-  echo "[TBD]"
-  echo "-tbd tbd"
+  echo "[PARAMETERS]"
+  echo "-u Username for the database"
+  echo "-p Password for the database"
+  echo "-d Database name"
+  echo "-b Bucket name"
   echo ""
-  echo "Example: mollusk.sh backup ???"
+  echo "Example: mollusk.sh backup -u root -p fizz -d my_sqldb -b tundra-backups"
   echo ""
   exit
 }
 
 help_restore(){
-  echo "Usage: mollusk.sh restore [TBD]"
+  echo "Usage: mollusk.sh restore [PARAMETERS]"
   echo ""
-  echo "[TBD]"
-  echo "-tbd tbd"
+  echo "[PARAMETERS]"
+  echo "-u Username for the database"
+  echo "-p Password for the database"
+  echo "-d Database name"
+  echo "-b Bucket name"
   echo ""
-  echo "Example: mollusk.sh restore ???"
+  echo "Example: mollusk.sh restore -u root -p fizz -d my_sqldb -b tundra-backups"
   echo ""
   exit
-}
-
-pop_argument(){
-  arguments=("${arguments[@]:1}")
 }
 
 options_nconf(){
@@ -247,22 +249,65 @@ options_ssl(){
 }
 
 options_backup_or_restore(){
-  pop_argument # Remove the function
+  if [ ${#arguments[@]} = 0 ]; then
+    help_"${1}"
+  fi
 
-  # if [ ${#arguments[@]} = 0 ]; then
-  #   help_"$1"
-  # fi
+  db_username=""
+  db_password=""
+  db_database=""
+  bucket_name=""
 
   for i in "${arguments[@]}"; do # Go through all user arguments
+    # If the argument starts with a dash, then set it as the current parameter/option
+    if [ "${i:0:1}" = "-" ]; then
+      current_param="${i}"
 
-    if [ "${i:0:1}" = "-" ]; then # If it's an option
-      echo "OPTION: $i"
+    # Handle parameters and options
+    elif [ "${current_param}" = "-u" ]; then # Parameter: Username for the database
+      db_username="${i}"
+    elif [ "${current_param}" = "-p" ]; then # Parameter: Password for the database
+      db_password="${i}"
+    elif [ "${current_param}" = "-d" ]; then # Parameter: Database name
+      db_database="${i}"
+    elif [ "${current_param}" = "-b" ]; then # Parameter: Bucket name
+      bucket_name="${i}"
+
+    # Error
+    else
+      echo "Error: Unrecognized parameter: ${current_param}"
+      exit
     fi
-
   done
 
-  execute_"${1}"
-  restart_nginx
+  # Check if mandatory parameters have been supplied
+  failed=""
+
+  if [ "${db_username}" = "" ]; then
+    echo "Error: Missing parameter: -u"
+    failed="true"
+  fi
+
+  if [ "${db_password}" = "" ]; then
+    echo "Error: Missing parameter: -p"
+    failed="true"
+  fi
+
+  if [ "${db_database}" = "" ]; then
+    echo "Error: Missing parameter: -d"
+    failed="true"
+  fi
+
+  if [ "${bucket_name}" = "" ]; then
+    echo "Error: Missing parameter: -b"
+    failed="true"
+  fi
+
+  if [ "${failed}" = "true" ]; then
+    exit
+  fi
+
+  execute_"${1}" "${db_username}" "${db_password}" "${db_database}" "${bucket_name}"
 }
 
 generate_conf_part_1(){
@@ -413,7 +458,7 @@ renew_certificates(){
 main(){
 
   function="${arguments[0]}"
-  pop_argument # Remove the function
+  arguments=("${arguments[@]:1}") # Remove the function (pop from font)
 
   if [ "${function}" = "nconf" ]; then
 
