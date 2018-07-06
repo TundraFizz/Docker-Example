@@ -20,6 +20,10 @@ yum -y install docker-ce
 
 # Enable docker to automatically start on boot
 systemctl enable docker
+systemctl start docker
+
+# Add Google's DNS to the Docker daemon; this allows Docker containers to connect to the internet
+echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
 
 # Add all users to the docker group
 USERS=$(cat /etc/passwd | grep "/home" | cut --delimiter=: --fields=1)
