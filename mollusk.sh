@@ -378,58 +378,93 @@ server {
 execute_backup(){
   echo "Backing up the database..."
 
+  db_username="${1}"
+  db_password="${2}"
+  db_database="${3}"
+  bucket_name="${4}"
+  current_time=$(date "+%Y-%m-%dT%H-%M-%S")
+  db_filename="mysql-backup-${current_time}.sql.gz"
+
   # Save the container that has the word "mysql" in its name as a variable
   mysql_container=$(docker container ls | grep mysql | grep -Eo '^[^ ]+')
 
-  # Make sure that the container has python-pip and AWS' CLI installed
-  docker exec "${mysql_container}" bash -c "apt-get update"
-  docker exec "${mysql_container}" bash -c "apt-get install -y python-pip"
-  docker exec "${mysql_container}" bash -c "pip install awscli"
+  # Save a configuration file for MySQL
+  docker exec "${mysql_container}" bash -c "echo '[client]'                 > config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'host=localhost'          >> config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'user=${db_username}'     >> config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'password=${db_password}' >> config.cnf"
 
-  current_time=$(date "+%Y-%m-%dT%H-%M-%S")
-  bucket_name="leif-mysql-backups"
-  db_username="root"
-  db_password="fizz"
-  db_database="abc"
-  db_filename="mysql-backup-${current_time}.sql.gz"
+  # Update the system
+  echo "> apt-get update"
+  docker exec "${mysql_container}" bash -c "apt-get -qq update"
+
+  # Install the Python package manager
+  echo "> apt-get install -y python-pip"
+  docker exec "${mysql_container}" bash -c "apt-get -qq install -y python-pip"
+
+  # Install the AWS Command-line Interface
+  echo "> pip install awscli"
+  docker exec "${mysql_container}" bash -c "pip install -q awscli"
 
   # Create a backup on the container (the mysqldump command will overwrite any existing mysql-backup file)
-  docker exec "${mysql_container}" bash -c "mysqldump -u ${db_username} -p${db_password} ${db_database} | gzip -9 > ${db_filename}"
+  echo "> mysqldump --defaults-extra-file=/config.cnf testing | gzip -9 > ${db_filename}"
+  docker exec "${mysql_container}" bash -c "mysqldump --defaults-extra-file=/config.cnf testing | gzip -9 > ${db_filename}"
 
   # Send the backup to my AWS S3 bucket
+  echo "> aws s3 cp ${db_filename} s3://${bucket_name}"
   docker exec "${mysql_container}" bash -c "aws s3 cp ${db_filename} s3://${bucket_name}"
 
   # Remove the backup file on the container
+  echo "> ${mysql_container}" bash -c "rm ${db_filename}"
   docker exec "${mysql_container}" bash -c "rm ${db_filename}"
 }
 
 execute_restore(){
   echo "Restoring the database..."
 
+  db_username="${1}"
+  db_password="${2}"
+  db_database="${3}"
+  bucket_name="${4}"
+
   # Save the container that has the word "mysql" in its name as a variable
   mysql_container=$(docker container ls | grep mysql | grep -Eo '^[^ ]+')
 
-  # Make sure that the container has python-pip and AWS' CLI installed
-  docker exec "${mysql_container}" bash -c "apt-get update"
-  docker exec "${mysql_container}" bash -c "apt-get install -y python-pip"
-  docker exec "${mysql_container}" bash -c "pip install awscli"
+  # Save a configuration file for MySQL
+  docker exec "${mysql_container}" bash -c "echo '[client]'                 > config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'host=localhost'          >> config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'user=${db_username}'     >> config.cnf"
+  docker exec "${mysql_container}" bash -c "echo 'password=${db_password}' >> config.cnf"
 
-  bucket_name="leif-mysql-backups"
-  db_username="root"
-  db_password="fizz"
-  db_database="testing"
+  # Update the system
+  echo "> apt-get update"
+  docker exec "${mysql_container}" bash -c "apt-get -qq update"
+
+  # Install the Python package manager
+  echo "> apt-get install -y python-pip"
+  docker exec "${mysql_container}" bash -c "apt-get -qq install -y python-pip"
+
+  # Install the AWS Command-line Interface
+  echo "> pip install awscli"
+  docker exec "${mysql_container}" bash -c "pip install -q awscli"
+
   db_filename=$(docker exec "${mysql_container}" bash -c "aws s3 ls ${bucket_name} | sort | tail -n 1" | awk '{print $4}')
+  echo "> ${db_filename}"
 
   # Download the backup from S3
+  echo "> aws s3 cp s3://leif-mysql-backups/${db_filename} ${db_filename}"
   docker exec "${mysql_container}" bash -c "aws s3 cp s3://leif-mysql-backups/${db_filename} ${db_filename}"
 
   # Create the database
+  echo "> mysql -u ${db_username} -p${db_password} -e 'create database ${db_database}'"
   docker exec "${mysql_container}" bash -c "mysql -u ${db_username} -p${db_password} -e 'create database ${db_database}'"
 
   # Restore from backup
+  echo "> gunzip < ${db_filename} | mysql -u ${db_username} -p${db_password} ${db_database}"
   docker exec "${mysql_container}" bash -c "gunzip < ${db_filename} | mysql -u ${db_username} -p${db_password} ${db_database}"
 
   # Remove the backup file on the container
+  echo "> rm ${db_filename}"
   docker exec "${mysql_container}" bash -c "rm ${db_filename}"
 }
 
