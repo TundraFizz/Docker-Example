@@ -32,19 +32,20 @@ help_ssl(){
   echo "Usage: mollusk.sh ssl [PARAMETERS] [OPTIONS] [FLAGS]"
   echo ""
   echo "[PARAMETERS]"
-  echo "-d Domain for the SSL certificate, you may optionally specify a port number (default is 80)"
-  echo "-s Service name"
+  echo "-d  Domain for the SSL certificate, you may optionally specify a port number (default is 80)"
+  echo "-se Service name of what you're creating the SSL certificate for"
+  echo "-st Stack name that contains the service"
   echo ""
   echo "[OPTIONS]"
   echo "-e Email to use when generating certs"
   echo ""
   echo "[FLAGS]"
-  echo "-t Testing mode, generate an SSL cert for staged testing (default is production)"
+  echo "-s Staging mode, generate an SSL cert for testing (default is production)"
   echo ""
-  echo "Example: mollusk.sh ssl -d example.com -n example-com"
-  echo "Example: mollusk.sh ssl -d example.com:9001 -n example-com"
-  echo "Example: mollusk.sh ssl -d example.com -n example-com -s"
-  echo "Example: mollusk.sh ssl -d example.com:9001 -n example-com -e myself@example.com -s"
+  echo "Example: mollusk.sh ssl -d example.com -se example-com -st sample"
+  echo "Example: mollusk.sh ssl -d example.com:9001 -se example-com -st sample"
+  echo "Example: mollusk.sh ssl -d example.com -se example-com -st sample -s"
+  echo "Example: mollusk.sh ssl -d example.com:9001 -se example-com -st sample -e myself@example.com -s"
   echo ""
   exit
 }
@@ -151,31 +152,59 @@ options_ssl(){
 
   domain=""
   service_name=""
+  stack_name=""
   email="--register-unsafely-without-email"
   staging="false"
 
   for i in "${arguments[@]}"; do # Go through all user arguments
-
-    if [ "${i}" = "-t" ]; then
+    # Handle flags first
+    if [ "${i}" = "-s" ]; then # Flag: Staging
       staging="true"
-    fi
 
-    # If the argument starts with a dash, then set it as the current parameter
-    if [ "${i:0:1}" = "-" ]; then
+    # If the argument starts with a dash, then set it as the current parameter/option
+    elif [ "${i:0:1}" = "-" ]; then
       current_param="${i}"
+
+    # Handle parameters and options
     elif [ "${current_param}" = "-d" ]; then # Parameter: Domain
       domain="${i}"
-    elif [ "${current_param}" = "-s" ]; then # Parameter: Service
+    elif [ "${current_param}" = "-se" ]; then # Parameter: Service name
       service_name="${i}"
+    elif [ "${current_param}" = "-st" ]; then # Parameter: Stack name
+      stack_name="${i}"
     elif [ "${current_param}" = "-e" ]; then # Option: Email
       email="--email ${i}"
-    # elif [ "${current_param}" = "-s" ]; then # Flag: Staging
-    #   staging="true"
+
+    # Error
     else
-      echo "ERROR! Unrecognized parameter: ${current_param}"
+      echo "Error: Unrecognized parameter: ${current_param}"
+      exit
     fi
   done
 
+  # Check if mandatory parameters have been supplied
+  failed=""
+
+  if [ "${domain}" = "" ]; then
+    echo "Error: Missing parameter: -d"
+    failed="true"
+  fi
+
+  if [ "${service_name}" = "" ]; then
+    echo "Error: Missing parameter: -se"
+    failed="true"
+  fi
+
+  if [ "${stack_name}" = "" ]; then
+    echo "Error: Missing parameter: -st"
+    failed="true"
+  fi
+
+  if [ "${failed}" = "true" ]; then
+    exit
+  fi
+
+  # Get port number if the user supplied it
   IFS=":"
   read -ra temp <<< "${domain}"
   domain_name=${temp[0]}
@@ -183,10 +212,6 @@ options_ssl(){
   if [ "${port_number}" = "" ]; then
     port_number="80"
   fi
-
-  # Get the EC2 instance's public IPv4 address
-  ip_address="$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
-  docker_stack_name="sample"
 
   # Create a new configuration file for NGINX
   generate_conf_part_1 "$domain_name" "$service_name" "$port_number"
@@ -197,8 +222,8 @@ options_ssl(){
     # Staging mode
 
     docker run -it --rm --name certbot                        \
-    -v "${docker_stack_name}"_ssl:/etc/letsencrypt            \
-    -v "${docker_stack_name}"_ssl_challenge:/ssl_challenge    \
+    -v "${stack_name}"_ssl:/etc/letsencrypt                   \
+    -v "${stack_name}"_ssl_challenge:/ssl_challenge           \
     certbot/certbot certonly "${email}" --webroot --agree-tos \
     -w /ssl_challenge --staging -d "${domain_name}"
 
@@ -209,8 +234,8 @@ options_ssl(){
     # Production mode
 
     docker run -it --rm --name certbot                        \
-    -v "${docker_stack_name}"_ssl:/etc/letsencrypt            \
-    -v "${docker_stack_name}"_ssl_challenge:/ssl_challenge    \
+    -v "${stack_name}"_ssl:/etc/letsencrypt                   \
+    -v "${stack_name}"_ssl_challenge:/ssl_challenge           \
     certbot/certbot certonly "${email}" --webroot --agree-tos \
     -w /ssl_challenge -d "${domain_name}"
 
@@ -220,18 +245,6 @@ options_ssl(){
 
   generate_conf_part_2 "${domain_name}"
   restart_nginx
-
-  # proxy_set_header X-Real-IP \$remote_addr;
-
-  # echo "=============================="
-  # echo "Domain |${domain}|"
-  # echo "D Name |${domain_name}|"
-  # echo "Port N |${port_number}|"
-  # echo "Srvice |${service_name}|"
-  # echo "Email  |${email}|"
-  # echo "Stage  |${staging}|"
-  # echo "=============================="
-  # exit
 }
 
 options_backup_or_restore(){
@@ -313,41 +326,6 @@ server {
   ssl_certificate_key /ssl/live/${domain_name}/privkey.pem;
   return 302 https://${domain_name}\$request_uri;
 }" >> ./nginx_conf.d/"${domain_name}".conf
-}
-
-generate_conf_part_2_old(){
-  domain_name=$1
-  ip_address=$2
-  port_number=$3
-
-  echo "
-server {
-  listen 443 ssl;
-  server_name $domain_name;
-
-  proxy_set_header X-Real-IP \$remote_addr;
-
-  ssl_certificate     /ssl/live/$domain_name/fullchain.pem;
-  ssl_certificate_key /ssl/live/$domain_name/privkey.pem;
-
-  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-  ssl_prefer_server_ciphers on;
-  ssl_ciphers \"ssl_ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS\";
-  ssl_ecdh_curve secp384r1;
-  ssl_session_cache shared:SSL:10m;
-  ssl_session_tickets off;
-  ssl_stapling on;
-  ssl_stapling_verify on;
-  resolver 8.8.8.8 8.8.4.4 valid=300s;
-  resolver_timeout 5s;
-  add_header Strict-Transport-Security \"max-age=63072000; includeSubdomains\";
-  add_header X-Frame-Options DENY;
-  add_header X-Content-Type-Options nosniff;
-
-  ssl_dhparam /dhparam.pem;
-
-  location / {proxy_pass http://$ip_address:$port_number;}
-}" >> ./nginx_conf.d/"$domain_name".conf
 }
 
 execute_backup(){
