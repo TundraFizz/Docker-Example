@@ -9,8 +9,7 @@
 # - Generating basic NGINX configuration files                                                      #
 #####################################################################################################
 
-# Default values for command-line options
-arguments=("$@")
+arguments=("$@") # User arguments
 
 help_main(){
   echo "Usage: mollusk.sh [FUNCTION]"
@@ -24,6 +23,24 @@ help_main(){
   echo ""
   echo "Pass a function name for more information on how to use it"
   echo "Example: mollusk.sh backup"
+  echo ""
+  exit
+}
+
+help_nconf(){
+  echo "Usage: mollusk.sh nconf [PARAMETERS] [OPTIONS]"
+  echo ""
+  echo "[PARAMETERS]"
+  echo "-c Container name that contains the service to forward to"
+  echo "-s Server name(s); ip is special and will use the instance's public ipv4"
+  echo ""
+  echo "[OPTIONS]"
+  echo "-p Port number (default = 80)"
+  echo ""
+  echo "Example: mollusk.sh nconf -c sample-app -s ip"
+  echo "Example: mollusk.sh nconf -c phpmyadmin -s ip -p 9000"
+  echo "Example: mollusk.sh nconf -c samples -s sample-data.com"
+  echo "Example: mollusk.sh nconf -c example -s example.com 34.218.241.246"
   echo ""
   exit
 }
@@ -46,24 +63,6 @@ help_ssl(){
   echo "Example: mollusk.sh ssl -d example.com:9001 -se example-com -st sample"
   echo "Example: mollusk.sh ssl -d example.com -se example-com -st sample -s"
   echo "Example: mollusk.sh ssl -d example.com:9001 -se example-com -st sample -e myself@example.com -s"
-  echo ""
-  exit
-}
-
-help_nconf(){
-  echo "Usage: mollusk.sh nconf [PARAMETERS] [OPTIONS]"
-  echo ""
-  echo "[PARAMETERS]"
-  echo "-c Container name that contains the service to forward to"
-  echo "-s Server name(s); ip is special and will use the instance's public ipv4"
-  echo ""
-  echo "[OPTIONS]"
-  echo "-p Port number (default = 80)"
-  echo ""
-  echo "Example: mollusk.sh nconf -c sample-app -s ip"
-  echo "Example: mollusk.sh nconf -c phpmyadmin -s ip -p 9000"
-  echo "Example: mollusk.sh nconf -c samples -s sample-data.com"
-  echo "Example: mollusk.sh nconf -c example -s example.com 34.218.241.246"
   echo ""
   exit
 }
@@ -262,7 +261,7 @@ options_backup_or_restore(){
 
   done
 
-  execute_"$1"
+  execute_"${1}"
   restart_nginx
 }
 
@@ -280,7 +279,7 @@ server {
   server_name ${domain_name} www.${domain_name};
 
   location / {
-    return 302 https://${domain_name}\$request_uri;
+    return 301 https://${domain_name}\$request_uri;
   }
 
   location /.well-known/acme-challenge/ {
@@ -322,9 +321,12 @@ server {
 server {
   listen 443 ssl;
   server_name www.${domain_name};
+
   ssl_certificate     /ssl/live/${domain_name}/fullchain.pem;
   ssl_certificate_key /ssl/live/${domain_name}/privkey.pem;
-  return 302 https://${domain_name}\$request_uri;
+
+  rewrite ^/(.*)$ https://${domain_name}/\$1 redirect;
+  return 301 https://${domain_name}\$request_uri;
 }" >> ./nginx_conf.d/"${domain_name}".conf
 }
 
@@ -335,25 +337,25 @@ execute_backup(){
   mysql_container=$(docker container ls | grep mysql | grep -Eo '^[^ ]+')
 
   # Make sure that the container has python-pip and AWS' CLI installed
-  docker exec "$mysql_container" bash -c "apt-get update"
-  docker exec "$mysql_container" bash -c "apt-get install -y python-pip"
-  docker exec "$mysql_container" bash -c "pip install awscli"
+  docker exec "${mysql_container}" bash -c "apt-get update"
+  docker exec "${mysql_container}" bash -c "apt-get install -y python-pip"
+  docker exec "${mysql_container}" bash -c "pip install awscli"
 
   current_time=$(date "+%Y-%m-%dT%H-%M-%S")
   bucket_name="leif-mysql-backups"
   db_username="root"
-  db_password="ENTER_PASSWORD_HERE"
-  db_database="testing"
-  db_filename="mysql-backup-$current_time.sql.gz"
+  db_password="fizz"
+  db_database="abc"
+  db_filename="mysql-backup-${current_time}.sql.gz"
 
   # Create a backup on the container (the mysqldump command will overwrite any existing mysql-backup file)
-  docker exec "$mysql_container" bash -c "mysqldump -u $db_username -p$db_password $db_database | gzip -9 > $db_filename"
+  docker exec "${mysql_container}" bash -c "mysqldump -u ${db_username} -p${db_password} ${db_database} | gzip -9 > ${db_filename}"
 
   # Send the backup to my AWS S3 bucket
-  docker exec "$mysql_container" bash -c "aws s3 cp $db_filename s3://$bucket_name"
+  docker exec "${mysql_container}" bash -c "aws s3 cp ${db_filename} s3://${bucket_name}"
 
   # Remove the backup file on the container
-  docker exec "$mysql_container" bash -c "rm $db_filename"
+  docker exec "${mysql_container}" bash -c "rm ${db_filename}"
 }
 
 execute_restore(){
@@ -363,27 +365,27 @@ execute_restore(){
   mysql_container=$(docker container ls | grep mysql | grep -Eo '^[^ ]+')
 
   # Make sure that the container has python-pip and AWS' CLI installed
-  docker exec "$mysql_container" bash -c "apt-get update"
-  docker exec "$mysql_container" bash -c "apt-get install -y python-pip"
-  docker exec "$mysql_container" bash -c "pip install awscli"
+  docker exec "${mysql_container}" bash -c "apt-get update"
+  docker exec "${mysql_container}" bash -c "apt-get install -y python-pip"
+  docker exec "${mysql_container}" bash -c "pip install awscli"
 
   bucket_name="leif-mysql-backups"
   db_username="root"
-  db_password="ENTER_PASSWORD_HERE"
+  db_password="fizz"
   db_database="testing"
-  db_filename=$(docker exec "$mysql_container" bash -c "aws s3 ls $bucket_name | sort | tail -n 1" | awk '{print $4}')
+  db_filename=$(docker exec "${mysql_container}" bash -c "aws s3 ls ${bucket_name} | sort | tail -n 1" | awk '{print $4}')
 
   # Download the backup from S3
-  docker exec "$mysql_container" bash -c "aws s3 cp s3://leif-mysql-backups/$db_filename $db_filename"
+  docker exec "${mysql_container}" bash -c "aws s3 cp s3://leif-mysql-backups/${db_filename} ${db_filename}"
 
   # Create the database
-  docker exec "$mysql_container" bash -c "mysql -u $db_username -p$db_password -e 'create database $db_database'"
+  docker exec "${mysql_container}" bash -c "mysql -u ${db_username} -p${db_password} -e 'create database ${db_database}'"
 
   # Restore from backup
-  docker exec "$mysql_container" bash -c "gunzip < $db_filename | mysql -u $db_username -p$db_password $db_database"
+  docker exec "${mysql_container}" bash -c "gunzip < ${db_filename} | mysql -u ${db_username} -p${db_password} ${db_database}"
 
   # Remove the backup file on the container
-  docker exec "$mysql_container" bash -c "rm $db_filename"
+  docker exec "${mysql_container}" bash -c "rm ${db_filename}"
 }
 
 restart_nginx(){
@@ -413,23 +415,23 @@ main(){
   function="${arguments[0]}"
   pop_argument # Remove the function
 
-  if [ "$function" = "ssl" ]; then
-
-    options_ssl
-
-  elif [ "$function" = "nconf" ]; then
+  if [ "${function}" = "nconf" ]; then
 
     options_nconf
 
-  elif [ "$function" = "renew" ]; then
+  elif [ "${function}" = "ssl" ]; then
+
+    options_ssl
+
+  elif [ "${function}" = "renew" ]; then
 
     renew_certificates
 
-  elif [ "$function" = "backup" ]; then
+  elif [ "${function}" = "backup" ]; then
 
     options_backup_or_restore "backup"
 
-  elif [ "$function" = "restore" ]; then
+  elif [ "${function}" = "restore" ]; then
 
     options_backup_or_restore "restore"
 
