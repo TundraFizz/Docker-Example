@@ -73,3 +73,4 @@ Copy a file from a container to the host and vice versa
 `bash mollusk.sh nconf -c phpmyadmin -s ip -p 9000`
 `docker swarm init`
 `docker stack deploy -c docker-compose.yml sample`
+
