@@ -29,4 +29,6 @@ sudo echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
 sudo usermod -aG docker $USER
 sudo reboot
 
-# After reboot you may run: bash setup.sh
+# After reboot:
+# git clone https://github.com/TundraFizz/Docker-Example
+# cd Docker-Example
