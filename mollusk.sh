@@ -469,19 +469,8 @@ execute_restore(){
 }
 
 restart_nginx(){
-  # docker restart "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')"
-
-  # Reloading NGINX config
+  # Reload the NGINX config
   docker exec -it "$(docker container ls | grep nginx | grep -Eo '^[^ ]+')" nginx -s reload
-
-  # Wait a little bit
-  sleep 2
-
-  # while ! docker container ls | grep nginx; do
-  #   echo "Nothing yet, waiting..."
-  #   sleep 1
-  # done
-  # echo "NGINX is back up and running!"
 }
 
 renew_certificates(){
