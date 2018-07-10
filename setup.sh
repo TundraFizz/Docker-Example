@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Download source of Node.JS application
-git clone https://github.com/TundraFizz/Docker-Example .
-cd Docker-Example
+git clone https://github.com/TundraFizz/Docker-Example
 
 # Create Docker image
 docker build -t sample-app sample-app
