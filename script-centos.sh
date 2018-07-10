@@ -27,8 +27,6 @@ echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' > /etc/docker/daemon.json
 
 # Add all users to the docker group
 USERS=$(cat /etc/passwd | grep "/home" | cut --delimiter=: --fields=1)
-
-# Add all users to the "docker" group
 for i in $USERS
 do
   usermod -aG docker $i
