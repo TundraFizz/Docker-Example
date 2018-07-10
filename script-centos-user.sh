@@ -32,3 +32,4 @@ sudo reboot
 # After reboot:
 # git clone https://github.com/TundraFizz/Docker-Example
 # cd Docker-Example
+# bash setup.sh
