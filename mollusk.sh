@@ -20,6 +20,7 @@ help_main(){
   echo "renew   Renew SSL certificates"
   echo "backup  Backup the database"
   echo "restore Restore the database from most recent backup"
+  echo "compose Creates a default template Docker compose file"
   echo ""
   echo "Pass a function name for more information on how to use it"
   echo "Example: mollusk.sh backup"
@@ -479,6 +480,71 @@ renew_certificates(){
   certbot/certbot renew
 }
 
+compose(){
+  if [ ! -f /docker-compose.yml ]; then
+
+    echo 'version: "3.6"'                                                                                                >> "docker-compose.yml"
+    echo 'services:'                                                                                                     >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+    echo '  nginx:'                                                                                                      >> "docker-compose.yml"
+    echo '    image: nginx'                                                                                              >> "docker-compose.yml"
+    echo '    ports:'                                                                                                    >> "docker-compose.yml"
+    echo '      - published: 80'                                                                                         >> "docker-compose.yml"
+    echo '        target: 80'                                                                                            >> "docker-compose.yml"
+    echo '        mode: host'                                                                                            >> "docker-compose.yml"
+    echo '      - published: 443'                                                                                        >> "docker-compose.yml"
+    echo '        target: 443'                                                                                           >> "docker-compose.yml"
+    echo '        mode: host'                                                                                            >> "docker-compose.yml"
+    echo '      - published: 9000 # Temporary for phpmyadmin; recommended to remove for a URL'                           >> "docker-compose.yml"
+    echo '        target: 9000    # Temporary for phpmyadmin; recommended to remove for a URL'                           >> "docker-compose.yml"
+    echo '        mode: host'                                                                                            >> "docker-compose.yml"
+    echo '    volumes:'                                                                                                  >> "docker-compose.yml"
+    echo '      - ./single_files/dhparam.pem:/dhparam.pem         # Custom DH parameters; recommended to change'         >> "docker-compose.yml"
+    echo '      - ./single_files/nginx.conf:/etc/nginx/nginx.conf # Custom NGINX config file'                            >> "docker-compose.yml"
+    echo '      - ./nginx_conf.d:/etc/nginx/conf.d'                                                                      >> "docker-compose.yml"
+    echo '      - ssl_challenge:/ssl_challenge'                                                                          >> "docker-compose.yml"
+    echo '      - ssl:/ssl'                                                                                              >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+    echo '  mysql:'                                                                                                      >> "docker-compose.yml"
+    echo '    image: mysql'                                                                                              >> "docker-compose.yml"
+    echo '    volumes:'                                                                                                  >> "docker-compose.yml"
+    echo '      - sql_storage:/var/lib/mysql'                                                                            >> "docker-compose.yml"
+    echo '    environment:'                                                                                              >> "docker-compose.yml"
+    echo '      MYSQL_ROOT_PASSWORD: "fizz"'                                                                             >> "docker-compose.yml"
+    echo '    entrypoint: ["/entrypoint.sh", "--default-authentication-plugin=mysql_native_password"]'                   >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+    echo '  phpmyadmin:'                                                                                                 >> "docker-compose.yml"
+    echo '    image: phpmyadmin/phpmyadmin'                                                                              >> "docker-compose.yml"
+    echo '    volumes:'                                                                                                  >> "docker-compose.yml"
+    echo '      - ./single_files/config.inc.php:/etc/phpmyadmin/config.inc.php # Custom phpMyAdmin config file'          >> "docker-compose.yml"
+    echo '      - ./single_files/header.twig:/www/templates/login/header.twig  # Mod to hide the "https mismatch" error' >> "docker-compose.yml"
+    echo '      - ./single_files/index.php:/www/index.php                      # Mod to hide the SSL status'             >> "docker-compose.yml"
+    echo '    environment:'                                                                                              >> "docker-compose.yml"
+    echo '      PMA_HOST: "mysql"'                                                                                       >> "docker-compose.yml"
+    echo '      PMA_PORT: "3306"'                                                                                        >> "docker-compose.yml"
+    echo '    depends_on:'                                                                                               >> "docker-compose.yml"
+    echo '      - mysql'                                                                                                 >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+    echo '  sample-app:'                                                                                                 >> "docker-compose.yml"
+    echo '    image: sample-app'                                                                                         >> "docker-compose.yml"
+    echo '    volumes:'                                                                                                  >> "docker-compose.yml"
+    echo '      - ./logs:/usr/src/app/log'                                                                               >> "docker-compose.yml"
+    echo '    depends_on:'                                                                                               >> "docker-compose.yml"
+    echo '      - mysql'                                                                                                 >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+    echo 'volumes:'                                                                                                      >> "docker-compose.yml"
+    echo '  sql_storage:'                                                                                                >> "docker-compose.yml"
+    echo '  ssl_challenge:'                                                                                              >> "docker-compose.yml"
+    echo '  ssl:'                                                                                                        >> "docker-compose.yml"
+    echo ''                                                                                                              >> "docker-compose.yml"
+
+  else
+
+    echo "docker-compose.yml already exists"
+
+  fi
+}
+
 main(){
 
   function="${arguments[0]}"
@@ -503,6 +569,10 @@ main(){
   elif [ "${function}" = "restore" ]; then
 
     options_backup_or_restore "restore"
+
+  elif [ "${function}" = "compose" ]; then
+
+    compose
 
   else
     help_main
