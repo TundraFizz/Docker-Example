@@ -121,6 +121,7 @@ options_nconf(){
       fi
 
       server_names+=("${i}")
+
     elif [ "${current_param}" = "-p" ]; then
       port="${i}"
     else
@@ -129,19 +130,20 @@ options_nconf(){
   done
 
   # Use the container's name as the upstream's name
-  upstream_name="${container_name}"
-  server_name=""
+  # upstream_name="${container_name}"
 
+  # Assign all of the server names
+  server_name=""
   for i in "${server_names[@]}"; do
     server_name+=" $i"
   done
 
   # Now generate the NXINX config file
-  echo "upstream ${upstream_name} {server ${container_name}:80;}"   > "nginx_conf.d/${container_name}".conf
+  echo "upstream ${container_name} {server ${container_name}:80;}"  > "nginx_conf.d/${container_name}".conf
   echo "server {"                                                  >> "nginx_conf.d/${container_name}".conf
   echo "  listen ${port};"                                         >> "nginx_conf.d/${container_name}".conf
   echo "  server_name${server_name};"                              >> "nginx_conf.d/${container_name}".conf
-  echo "  location / {proxy_pass http://${upstream_name};}"        >> "nginx_conf.d/${container_name}".conf
+  echo "  location / {proxy_pass http://${container_name};}"       >> "nginx_conf.d/${container_name}".conf
   echo "}"                                                         >> "nginx_conf.d/${container_name}".conf
 
   restart_nginx
@@ -481,7 +483,7 @@ renew_certificates(){
 }
 
 compose(){
-  if [ ! -f /docker-compose.yml ]; then
+  if [ ! -f docker-compose.yml ]; then
 
     echo 'version: "3.6"'                                                                                                >> "docker-compose.yml"
     echo 'services:'                                                                                                     >> "docker-compose.yml"
@@ -536,7 +538,6 @@ compose(){
     echo '  sql_storage:'                                                                                                >> "docker-compose.yml"
     echo '  ssl_challenge:'                                                                                              >> "docker-compose.yml"
     echo '  ssl:'                                                                                                        >> "docker-compose.yml"
-    echo ''                                                                                                              >> "docker-compose.yml"
 
   else
 
