@@ -3,8 +3,30 @@
 #### Quick-Start
 
 ```
-script-centos-user.sh
+1. Run the setup which also downloads mollusk.sh and then reboots the system
+bash <(curl -Ls https://goo.gl/p22yXn)
 
+2. Generate a default docker-compose file
+bash mollusk.sh compose
+
+3. Build your Docker images
+docker build -t sample-app sample-app
+
+4. Modify the docker-compose.yml file to include your images
+
+5. Initialize Docker Swarm
+docker swarm init
+
+6. Deploy the stack
+docker stack deploy -c docker-compose.yml sample
+
+7. Generate SSL certificates and NGINX config files
+bash mollusk.sh ssl -d mudki.ps -se sample-app -st sample -s
+
+Create stuff:
+logs
+nginx_conf.d
+single_files => 5 files
 ```
 
 #### Images
