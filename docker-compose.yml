@@ -14,7 +14,7 @@ services:
         target: 9000    # Temporary for phpmyadmin; recommended to remove for a URL
         mode: host
     volumes:
-      - ./single_files/dhparam.pem:/dhparam.pem         # Custom DH parameters
+      - ./single_files/dhparam.pem:/dhparam.pem         # Custom DH parameters; recommended to change
       - ./single_files/nginx.conf:/etc/nginx/nginx.conf # Custom NGINX config file
       - ./nginx_conf.d:/etc/nginx/conf.d
       - ssl_challenge:/ssl_challenge
