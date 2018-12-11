@@ -72,10 +72,23 @@ single_files => 5 files
 | `docker service rm ID`                              | Remove a particular service               |
 | `docker service rm $(docker service ls -q)`         | Remove all services                       |
 
-Create a container from image manually
-`docker run --name=sample -d tundrafizz/sample-app`
+#### Misc
+| Command                                                          | Description                                |
+| ---------------------------------------------------------------- | ------------------------------------------ |
+| `docker service logs SERVICE_NAME -f`                            | Displays logs of a given service           |
+| `find /var/lib/docker/containers/ -type f -name "*.log" -delete` | Deletes all log files                      |
+| `docker exec -it CONTAINER_ID bash`                              | SSH into a container                       |
+| `docker cp file.ext CONTAINER_ID:/path/to/file.ext`              | Copy a file from the host into a container |
+| `docker cp CONTAINER_ID:/path/to/file.ext .`                     | Copy a file from a container into the host |
+| `docker run --name=sample -d tundrafizz/sample-app`              | Create a container from image manually     |
 
 #### Other notes [1]
+
+SSH into a container with the name "nginx"
+`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') bash`
+
+Perform the command "nginx -s reload" in the container with the name "nginx"
+`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload`
 
 `sudo yum -y install epel-release`
 `sudo curl -sL https://rpm.nodesource.com/setup_8.x | sudo bash -`
@@ -83,24 +96,3 @@ Create a container from image manually
 `sudo npm i -g nodemon`
 
 `docker run -it -d -p 8080:8080 -e HOST=54.202.110.238 -v /var/run/docker.sock:/var/run/docker.sock docker.io/dockersamples/visualizer:latest`
-
-SSH into a docker container
-`docker exec -it 66f1859e1583 bash`
-`docker exec -it 66f1859e1583 /bin/sh`
-
-Copy a file from a container to the host and vice versa
-`docker cp <container>:/path/to/file.ext .`
-`docker cp file.ext <container>:/path/to/file.ext`
-
-`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') bash`
-`docker exec -it $(docker container ls | grep nginx | grep -Eo '^[^ ]+') nginx -s reload`
-
-#### Sample
-`script-centos-user.sh` to set up the environment for Docker
-`git clone https://github.com/TundraFizz/Docker-Example`
-`cd Docker-Example`
-`docker build -t sample-app sample-app`
-`bash mollusk.sh nconf -c sample-app -s ip`
-`bash mollusk.sh nconf -c phpmyadmin -s ip -p 9000`
-`docker swarm init`
-`docker stack deploy -c docker-compose.yml sample`
