@@ -96,3 +96,4 @@ Perform the command "nginx -s reload" in the container with the name "nginx"
 `sudo npm i -g nodemon`
 
 `docker run -it -d -p 8080:8080 -e HOST=54.202.110.238 -v /var/run/docker.sock:/var/run/docker.sock docker.io/dockersamples/visualizer:latest`
+
